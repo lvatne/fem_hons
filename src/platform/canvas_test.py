@@ -2,8 +2,8 @@
 
 import numpy as np
 import geofence
-import tracker
-import motor_sw
+#import tracker
+#import motor_sw
 import time
 from tkinter import *
 
@@ -46,11 +46,11 @@ for i in range(n-1):
 # w.create_line(150,20, 200, 0, fill="#476042", width=3)
 # w.create_line(150, 80, 200, 100, fill="#476042", width=3)
 
-m = motor_sw.Motor_sw()
-c = tracker.Compass(gauss = 0.88, declination = (0, 52))
-c.self_test()
+# m = motor_sw.Motor_sw()
+# c = tracker.Compass(gauss = 0.88, declination = (0, 52))
+# c.self_test()
 
-a = tracker.Accelerometer()
+# a = tracker.Accelerometer()
 
 try:
     print( a.getAxes(True) )

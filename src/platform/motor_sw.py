@@ -20,11 +20,6 @@ class Motor_sw:
     Attributes:
         None.
     """
-    # GPIO pins for servos
-    LEFT_FORWARD = 6                             
-    LEFT_REVERSE = 5                             
-    RIGHT_FORWARD = 21                             
-    RIGHT_REVERSE = 20                       
     TURN_FACTOR = 70.2
     NEUTRAL_TURN_FACTOR = 35.1
     ROLL_UP_TIME = 0.05
@@ -56,6 +51,14 @@ class Motor_sw:
     def __init__(self):
         # GPIO.cleanup()
         # GPIO.setwarnings(False)
+        s = sysprops.SysProps()
+        
+    # GPIO pins for servos
+        self.LEFT_FORWARD = s.left_forward
+        self.LEFT_REVERSE = s.left_reverse
+        self.RIGHT_FORWARD = s.right_forward                             
+        self.RIGHT_REVERSE = s.right_reverse
+    
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.LEFT_FORWARD, GPIO.OUT)
         GPIO.setup(self.LEFT_REVERSE, GPIO.OUT)
@@ -97,7 +100,6 @@ class Motor_sw:
         self.logger.addHandler(hdlr) 
         self.logger.setLevel(logging.WARNING)
         self.logger.info("--------------+++--------------")
-        s = sysprops.SysProps()
         self.MIN_PWR = s.motor_min_power
 
 

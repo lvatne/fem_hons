@@ -50,6 +50,10 @@ class SysProps:
         self.cam_width1=int(self.props['cam_width1'])
         self.cam_height1=int(self.props['cam_height1'])
         self.cv2_cam_device1=int(self.props['cv2_cam_device1'])
+        self.left_forward=int(self.props['left_forward'])
+        self.left_reverse=int(self.props['left_reverse'])
+        self.right_forward=int(self.props['right_forward'])
+        self.right_reverse=int(self.props['right_reverse'])
         
 
     def set(self, key, value):
