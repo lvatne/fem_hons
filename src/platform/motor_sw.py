@@ -70,10 +70,10 @@ class Motor_sw:
         GPIO.output(self.RIGHT_FORWARD,GPIO.LOW)  
         GPIO.output(self.RIGHT_REVERSE,GPIO.LOW)
 
-        self.lf_servo = GPIO.PWM(self.LEFT_FORWARD, 20)
-        self.lr_servo = GPIO.PWM(self.LEFT_REVERSE, 20)
-        self.rf_servo = GPIO.PWM(self.RIGHT_FORWARD, 20)
-        self.rr_servo = GPIO.PWM(self.RIGHT_REVERSE, 20)
+        self.lf_servo = GPIO.PWM(self.LEFT_FORWARD, 100)
+        self.lr_servo = GPIO.PWM(self.LEFT_REVERSE, 100)
+        self.rf_servo = GPIO.PWM(self.RIGHT_FORWARD, 100)
+        self.rr_servo = GPIO.PWM(self.RIGHT_REVERSE, 100)
 
         self.power = 0.0
         self.lPower = 0.0

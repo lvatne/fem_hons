@@ -21,7 +21,7 @@ class Tracker:
     def __init__(self):
         self.BUFSZ = 5
         self.inertial_data = np.zeros((self.BUFSZ, 22), dtype=float)
-        # Accessors for the inerial_data cells
+        # Accessors for the inertial_data cells
         self.tstamp  = 0
         self.acc_x   = 1
         self.acc_y   = 2
@@ -44,26 +44,17 @@ class Tracker:
         self.rot_P   = 19
         self.rot_I   = 20
         self.rot_D   = 21
+        
         self.first_run = True
+        self.Fs = 100.0 # sample rate, Hz
+        self.Ts = 1.0 / self.Fs # Pre calculate sleep time
+        self.Ta = self.Ts # Will be filled in with actual sampling period
         
         #
-        self.PV_buf = np.zeros(self.BUFSZ, dtype=float) # PV values for the PID regulator
-        self.P_buf = np.zeros(self.BUFSZ, dtype=float) # P values for PID regulator
-        self.I_buf = np.zeros(self.BUFSZ, dtype=float) # I values for the PID regulator
-        self.D_buf = np.zeros(self.BUFSZ, dtype=float) # D values for the PID regulator
-        self.E_buf = np.zeros(self.BUFSZ, dtype=float) # Error values for the PID regulator
-        self.CO_buf = np.zeros(self.BUFSZ, dtype=float) # Controller Output from the PID regulator
-        self.gyro_buf = np.zeros(self.BUFSZ, dtype=float) # raw gyro values
-        self.acc_buf = np.zeros(self.BUFSZ, dtype=float) # raw accleleration values
         self.Kp_steer = 5
         self.Ki_steer = 2
         self.Kd_steer = 1
         
-        self.buf_idx = 0 # We're at the same place in all buffers
-        self.Fs = 50.0 # sample rate, Hz
-        self.Ts = 1.0 / self.Fs # Pre calculate sleep time
-        self.Ta = self.Ts # Will be filled in with actual sampling period
-
         self.dbg_cnt = 0
         
         self.cur_x = 70.0
@@ -76,18 +67,29 @@ class Tracker:
         self.a = Accelerometer()
         self.g = Gyro()
         self.m = motor_sw.Motor_sw()
-        # Get calibrated acceleration offset
-        self.x_offset = 0.0
-        for i in range(5):
-            acc = self.a.getAxes()
-            self.x_offset = self.x_offset + acc[0]
-            time.sleep(0.1)
-        self.x_offset = self.x_offset / 5            
+        self.calibrate_accelerometer_offset()
+        
         self.logger = logging.getLogger('navigation')
         self.logger.info("--------------+++--------------")
         
     def stop(self):
         self.m.signal(self.m.STOP, 0)
+
+    def calibrate_accelerometer_offset(self) :
+        # Get calibrated acceleration offset
+        self.x_offset = 0.0
+        self.y_offset = 0.0
+        self.z_offset = 0.0
+        for i in range(5):
+            time.sleep(0.1)
+            acc = self.a.getAxes()
+            self.x_offset = self.x_offset + acc[0]
+            self.y_offset = self.y_offset + acc[1]
+            self.z_offset = self.z_offset + acc[2]
+        self.x_offset = self.x_offset / 5
+        self.y_offset = self.y_offset / 5
+        self.z_offset = self.z_offset / 5
+        
 
     def move_dist(self, meter):
         """
@@ -145,8 +147,6 @@ class Tracker:
     def move_dist_basic(self, meter):
         self.dbg_cnt = 0
         self.buf_reset()
-        self.buf_idx = 1
-        old_dist = self.distance
         r_dist = meter
         off_course_angle = 0
         self.Ta = self.Ts # Will be filled in with actual sampling period
@@ -154,16 +154,13 @@ class Tracker:
         failure = 0
         self.logger.info("Tracker.move_dist(%3.3f)" % (meter))
         try:
+            
+
             num_iter = 0 # Count the number of attempts
-            # Assume we're stationary, get the offset value            
-            acc = self.a.getAxes()
-            x_offset = acc[0] # Set instantaneous offset at start
-            adj_accel_data = 0
-            adj_gyro_data = 0
-            vel = 0
-            setpoint = 0 # Set point for the PID regulator
-            prev_vel = 0
-            while math.fabs(r_dist) > 0.05 and num_iter < 2000:
+            velocity = 0.0
+            steer_setpoint = 0.0 # Set point for the steering PID regulator
+
+            while math.fabs(r_dist) > 0.05 and num_iter < 400:
                 if r_dist > 0.05:
                     power = self.m.MIN_PWR + r_dist * 200
                     if power > 100:
@@ -172,37 +169,40 @@ class Tracker:
                     power = 0.0 - self.m.MIN_PWR + r_dist * 200
                     if power < -100:
                         power = -100
-                prev_vel = vel
                 if power >= 0:
                     self.m.signal(self.m.RUN_FWD, power)
                 else:
-                    self.m.signal(self.m.RUN_REV, power)
-                adj_accel_data, adj_gyro_data = self.get_inertial_measurements(x_offset, setpoint)
-                vel = vel + adj_accel_data * self.Ta
-                r_dist = self.remaining_dist(vel, prev_vel, r_dist)
-                PID_val = self.PIDsteer(setpoint)
+                    self.m.signal(self.m.RUN_REV, 0.0 - power)
+                self.get_inertial_measurements()
+
+                
+                # Get current velocity.... it's already calculated in inertial....
+                vel = self.inertial_data[0, self.vel_x]
+                r_dist = self.remaining_dist(vel, self.inertial_data[1, self.vel_x], r_dist)
+                PID_val = self.PIDsteer(steer_setpoint)
                 # print("m_fwd: vel: %3.3f, r_dist: %3.3f, PID: %3.3f" % (vel, r_dist, PID_val))
                 if PID_val >= 0:
                     if PID_val > 100:
                         PID_val = 100
-                    self.m.signal(self.m.STEER_RIGHT, PID_val)
+                    self.m.signal(self.m.STEER_LEFT, PID_val)
                 else:
                     if PID_val < -100:
                         PID_val = -100
-                    self.m.signal(self.m.STEER_LEFT, 0.0 - PID_val)
+                    self.m.signal(self.m.STEER_RIGHT, 0.0 - PID_val)
 
                 num_iter = num_iter + 1
-                if self.dbg_cnt % 50 == 0:
-                    self.logger.info("m_fwd: vel: %3.3f, r_dist: %3.3f, PID: %3.3f" % (vel, r_dist, PID_val))
+                # if self.dbg_cnt % 50 == 0:
+                #     self.logger.info("m_fwd: vel: %3.3f, r_dist: %3.3f, PID: %3.3f" % (vel, r_dist, PID_val))
             self.m.signal(self.m.STOP, 0)
             self.logger.info("Tracker.move_dist(%3.3f) done: vel: %3.3f, r_dist: %3.3f, PID: %3.3f" % (meter, vel, r_dist, PID_val))
 
         except:
             self.m.signal(self.m.STOP, 0)
+            raise()
             self.logger.error("Tracker.move_dist(%3.3f) failed" % (meter))
             print("ERROR: Tracker.move_dist(%3.3f) failed" % (meter))
             failure = 1
-        if num_iter >= 2000 or failure == 1:
+        if num_iter >= 400 or failure == 1:
             return 1
         else:
             return 0
@@ -212,27 +212,30 @@ class Tracker:
         The buffer index has already been incremented, so go back one.
         Return a Controler Output (CO) in the range -100 to +100
         """
-        # Pre calculate values for the PID regulator
-        P = self.inertial_data[1, self.steer_P] + self.inertial_data[0, self.angle_z]
+        # Calculate values for the PID regulator
+        P = self.inertial_data[0, self.angle_z]
         max_p = max(self.inertial_data[0, self.steer_P], self.inertial_data[1, self.steer_P])
         min_p = min(self.inertial_data[0, self.steer_P], self.inertial_data[1, self.steer_P])
-        I = (max_p - min_p) / 2 * self.Ta + min_p * self.Ta
+        I = ((max_p - min_p) / 2 * self.Ta) + (min_p * self.Ta)
         D = self.inertial_data[0, self.gyr_z]
+
+        # Adjust PID tuning
+        P = P * self.Kp_steer
+        I = I * self.Ki_steer
+        D = D * self.Kd_steer
 
         self.inertial_data[0, self.steer_P] = P
         self.inertial_data[0, self.steer_I] = I
         self.inertial_data[0, self.steer_D] = D
         
-        errval = P * self.Kp_steer
-
-        errval = errval + I * self.Ki_steer
-        errval = errval + D * self.Kd_steer
-
+        errval = P + I + D
+        # Calculate and adjust the Controller Output
         CO = setpoint - errval
         if CO < -100:
             CO = -100.0
         elif CO > 100:
             CO = 100.0
+        print("P: %2.3f I: %2.3f D: %2.3f E: %2.3f CO: %2.3f" % (P, I, D, errval, CO))
         return CO
             
     def get_inertial_measurements(self):
@@ -253,9 +256,9 @@ class Tracker:
 
         # Store the most recent raw data at index 0 in the inertial_data buffer
         self.inertial_data[0, self.tstamp] = t_now
-        self.inertial_data[0, self.acc_x] = acc[0]
-        self.inertial_data[0, self.acc_y] = acc[1]
-        self.inertial_data[0, self.acc_z] = acc[2]
+        self.inertial_data[0, self.acc_x] = acc[0] - self.x_offset
+        self.inertial_data[0, self.acc_y] = acc[1] - self.y_offset
+        self.inertial_data[0, self.acc_z] = acc[2] - self.z_offset
         self.inertial_data[0, self.gyr_x] = gyr[0]
         self.inertial_data[0, self.gyr_y] = gyr[1]
         self.inertial_data[0, self.gyr_z] = gyr[2]
@@ -269,7 +272,7 @@ class Tracker:
         
         instant_gyro = self.inertial_data[0, self.gyr_z] # It's the rotation about the Z axis we're using
 
-        self.inertial_data[0, self.angle_z] = instant_gyro * self.Ta
+        self.inertial_data[0, self.angle_z] = self.inertial_data[1, self.angle_z] + instant_gyro * self.Ta
         # Add rotation data for X and Y axis later if required.....
         
         self.inertial_data[0, self.vel_x] = self.inertial_data[1, self.vel_x] + self.inertial_data[0, self.acc_x] * self.Ta
@@ -428,17 +431,10 @@ class Tracker:
             self.m.steer(self.PIDsteer(angle))
 
     def buf_reset(self):
-        for i in range(5):
-            self.PV_buf[i] = 0.0  # PV values for the PID regulator
-            self.P_buf[i] = 0.0 # P values for PID regulator
-            self.I_buf[i] = 0.0 # I values for the PID regulator
-            self.D_buf[i] = 0.0 # D values for the PID regulator
-            self.E_buf[i] = 0.0 # Error values for the PID regulator
-            self.CO_buf[i] = 0.0 # Controller Output from the PID regulator
-            self.gyro_buf[i] = 0.0 # raw gyro values
-            self.acc_buf[i] = 0.0 # raw accleleration values
-            # self.tstamp[i] = time.time() # Time stamps for samples
-
+        for i in range(self.BUFSZ):
+            for j in range(self.inertial_data[0].size):
+                self.inertial_data[i, j] = 0.0
+                
     def dump_buf(self, filename):
         i = self.buf_idx
         j = 0

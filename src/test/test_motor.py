@@ -5,7 +5,7 @@ import time
 m = motor_sw.Motor_sw()
 m.force_stop()
 
-m.signal(m.RUN_FWD, 100)
+m.signal(m.RUN_FWD, 30)
 time.sleep(1)
 m.signal(m.RUN_FWD, 70)
 time.sleep(1)
