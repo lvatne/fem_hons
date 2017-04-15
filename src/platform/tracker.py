@@ -50,11 +50,14 @@ class Tracker:
         self.Ts = 1.0 / self.Fs # Pre calculate sleep time
         self.Ta = self.Ts # Will be filled in with actual sampling period
         
-        #
         self.Kp_steer = 5
         self.Ki_steer = 2
         self.Kd_steer = 1
-        
+
+        self.Kp_turn = 3
+        self.Ki_turn = 2
+        self.Kd_turn = 1
+        #
         self.dbg_cnt = 0
         
         self.cur_x = 70.0
@@ -150,6 +153,7 @@ class Tracker:
         r_dist = meter
         off_course_angle = 0
         self.Ta = self.Ts # Will be filled in with actual sampling period
+        self.first_run = True
         num_iter = 0
         failure = 0
         self.logger.info("Tracker.move_dist(%3.3f)" % (meter))
@@ -208,9 +212,9 @@ class Tracker:
             return 0
 
     def PIDsteer(self, setpoint):
-        """ Calculate the error value to apply to the steering using P_ I_ and D_buf class buffers.
-        The buffer index has already been incremented, so go back one.
-        Return a Controler Output (CO) in the range -100 to +100
+        """ Calculate the error value to apply to the steering to keep the robot
+        tracking in a straight line.
+        Return a Controller Output (CO) in the range -100 to +100
         """
         # Calculate values for the PID regulator
         P = self.inertial_data[0, self.angle_z]
@@ -235,7 +239,7 @@ class Tracker:
             CO = -100.0
         elif CO > 100:
             CO = 100.0
-        print("P: %2.3f I: %2.3f D: %2.3f E: %2.3f CO: %2.3f" % (P, I, D, errval, CO))
+        # print("P: %2.3f I: %2.3f D: %2.3f E: %2.3f CO: %2.3f" % (P, I, D, errval, CO))
         return CO
             
     def get_inertial_measurements(self):
@@ -372,56 +376,56 @@ class Tracker:
             Adjust power to the wheels relative to how many degrees remaining to turn
             Return the remaining angle
         """
-        giveup = 500
-        idx = 1
+        giveup = 200
         self.buf_reset()
-        # self.tstamp[0] = time.time()
-        self.gyro_buf[0] = 0.0
-        rel_angle = rel_angle % 360
-        if rel_angle > 180:
-            rel_angle = rel_angle - 360
-        elif rel_angle < -180:
-            rel_angle = rel_angle + 360
-        turn_angle = rel_angle # turn_angle is the remaining number of degrees
-        if turn_angle > 2:
-            self.m.signal(self.m.TURN_RIGHT, 100)
-        elif turn_angle < -2:
-            self.m.signal(self.m.TURN_LEFT, 100)
-        while turn_angle > 0.5 or turn_angle < -0.5:
-            gyr = self.g.read()
-            # self.tstamp[idx] = time.time()
-            instant_gyro = gyr[2] # It's the Z rotation we're using. In deg/sec
-            # self.Ta = self.tstamp[idx] - self.tstamp[idx - 1]
-            if self.Ta < 0.0:
-                self.Ta = math.fabs(self.Ta)
-            self.gyro_buf[idx] = self.gyro_buf[idx - 1] + instant_gyro * self.Ta
-            turn_angle = rel_angle + self.gyro_buf[idx]
-            power = math.fabs(turn_angle / 0.8)
-            if power < self.m.MIN_PWR:
-                power = self.m.MIN_PWR
-            elif power > 100:
-                power = 100
-            # print("turn_angle: %3.3f turned so far %3.3f, instant %3.3f, power: %3.3f" % (turn_angle, self.gyro_buf[idx], instant_gyro, power))
-            if turn_angle > 2:
-                self.m.signal(self.m.TURN_RIGHT, power)
-            elif turn_angle < -2:
-                self.m.signal(self.m.TURN_LEFT, power)
-            idx = idx + 1
-            if idx > self.BUFSZ - 2: # Wrap the buffers around
-                # self.tstamp[0] = self.tstamp[idx - 1]
-                self.gyro_buf[0] = self.gyro_buf[idx - 1]
-                idx = 1
-            if self.Ta < self.Ts:
-                time.sleep(self.Ts - self.Ta)
+        self.Ta = self.Ts    # Reset the actual sample time to avoid unexpected startup conditions
+        self.first_run = True
+        completed_angle = 0.0
+        while rel_angle < -180.0:
+            rel_angle = rel_angle + 360.0
+        while rel_angle > 180.0:
+            rel_angle = rel_angle - 360.0
+
+        turn_angle = rel_angle
+        while (turn_angle > 1.0 or turn_angle < -1.0) and giveup > 0:
+            self.get_inertial_measurements()
+            PID = self.PIDturn(turn_angle)
+            if PID >= 0.0:
+                self.m.signal(self.m.TURN_RIGHT, PID)
+            else:
+                self.m.signal(self.m.TURN_LEFT, 0.0 - PID)
+            completed_angle = self.inertial_data[0, self.angle_z]
+            turn_angle = rel_angle - completed_angle
             giveup = giveup - 1
-            if giveup < 0:
-                print("tracker.turn_relative(%3.3f) Giving up with angle %3.3f" % (rel_angle, turn_angle))
-                self.m.force_stop()
-                break
-        print("turn_angle: %3.3f turned so far %3.3f, instant %3.3f, power: %3.3f" % (turn_angle, self.gyro_buf[idx-1], instant_gyro, power))
-        self.m.stop()
+            print("Angle: %3.2f Compl: %3.2f Remain: %3.2f PID %3.2f Iter: %d P: %3.2f I: %3.2f D: %3.2f Ta: %3.2f Gyr Z %3.2f" %
+                  (rel_angle, completed_angle, turn_angle, PID, giveup, self.inertial_data[0, self.rot_P], self.inertial_data[0, self.rot_I], self.inertial_data[0, self.rot_D], self.Ta, self.inertial_data[0, self.gyr_z]))
+            
+        self.m.signal(self.m.STOP, 0.0)
         return turn_angle
-                
+
+    def PIDturn(self, turn_setpoint):
+        """ Calculate the power to be applied to turning left or right while
+            orienting the robot
+            """
+        # P = self.inertial_data[0, self.angle_z] * self.Kp_turn
+        P = turn_setpoint * self.Kp_turn
+        self.inertial_data[0, self.rot_P] = P
+        max_a = max(self.inertial_data[0, self.rot_P], self.inertial_data[1, self.rot_P])
+        min_a = min(self.inertial_data[0, self.rot_P], self.inertial_data[1, self.rot_P])
+        I = ((((max_a - min_a) / 2) * self.Ta) + (min_a * self.Ta)) * self.Ki_turn
+        D = self.inertial_data[0, self.gyr_z] * self.Kd_turn
+        self.inertial_data[0, self.rot_I] = I
+        self.inertial_data[0, self.rot_D] = D
+        errval = P + I + D
+        CO = turn_setpoint - errval
+        if CO < -100.0:
+            CO = -100.0
+        if CO > 100.0:
+            CO = 100.0
+
+        return CO
+        
+        
         
     def turn(self, angle, hdg):
         """ Adjust the relative power of the motors while running forward
