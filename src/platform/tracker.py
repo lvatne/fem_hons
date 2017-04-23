@@ -20,7 +20,7 @@ class Tracker:
     """
     def __init__(self):
         self.BUFSZ = 5
-        self.inertial_data = np.zeros((self.BUFSZ, 22), dtype=float)
+        self.inertial_data = np.zeros((self.BUFSZ, 23), dtype=float)
         # Accessors for the inertial_data cells
         self.tstamp  = 0
         self.acc_x   = 1
@@ -44,6 +44,7 @@ class Tracker:
         self.rot_P   = 19
         self.rot_I   = 20
         self.rot_D   = 21
+        self.samplingtime=22
         
         self.first_run = True
         self.Fs = 100.0 # sample rate, Hz
@@ -61,7 +62,7 @@ class Tracker:
         self.s = sysprops.SysProps()
         self.collect_PID_data = False
         if self.collect_PID_data:
-            self.PID_store = np.empty((500,22), dtype=float)
+            self.PID_store = np.empty((500,23), dtype=float)
         
         self.dbg_cnt = 0
         #
@@ -289,6 +290,7 @@ class Tracker:
         else:
             self.Ta = 0.0
             self.first_run = False
+        self.inertial_data[0, self.samplingtime] = self.Ta
         
         instant_gyro = self.inertial_data[0, self.gyr_z] # It's the rotation about the Z axis we're using
 
@@ -480,7 +482,7 @@ class Tracker:
             
     def dump_PID_store(self, PID_store):
         path = os.path.join(self.s.logdir, "PID_data_log_" + str(time.time()) + ".csv")
-        np.savetxt(path, PID_store[0:self.dbg_cnt], "%3.2f", delimiter=',')
+        np.savetxt(path, PID_store[0:self.dbg_cnt], "%3.3f", delimiter=',')
         self.dbg_cnt = 0
 
 class Gyro:
