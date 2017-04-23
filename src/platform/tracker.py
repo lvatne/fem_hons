@@ -302,9 +302,6 @@ class Tracker:
         self.inertial_data[0, self.vel_z] = self.inertial_data[1, self.vel_z] + self.inertial_data[0, self.acc_z] * self.Ta
 
 
-        # if self.dbg_cnt % 50 == 0:
-        #     self.logger.info("Ta = %3.5f Fa = %3.3f Hz" % (self.Ta, 1.0 / self.Ta))
-        self.dbg_cnt = self.dbg_cnt + 1
         # return adj_accel, adj_gyro
 
     def remaining_dist(self, velocity, prev_velocity, prev_distance):
