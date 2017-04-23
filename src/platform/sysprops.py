@@ -13,8 +13,10 @@ class SysProps:
         except KeyError:
             print("Error in installation. $ROBOHOME does not exist")
             raise
-        confdir = os.path.join(self.robohome, "conf")
-        self.sysprops = os.path.join(confdir, "robot.properties")
+        self.confdir = os.path.join(self.robohome, "conf")
+        self.logdir = os.path.join(self.robohome, "log")
+        self.imagedir = os.path.join(self.robohome, "img")
+        self.sysprops = os.path.join(self.confdir, "robot.properties")
         f = 0
         try:
             f = open(self.sysprops, 'rb')
@@ -29,7 +31,7 @@ class SysProps:
         self.props = jprops.load_properties(f)
         f.close()
         self.refresh()
-        self.conf = confdir
+        self.conf = self.confdir
 
     def store(self):
         f=open(self.sysprops, 'wb')

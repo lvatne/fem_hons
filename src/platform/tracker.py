@@ -57,9 +57,14 @@ class Tracker:
         self.Kp_turn = 3
         self.Ki_turn = 2
         self.Kd_turn = 1
-        #
-        self.dbg_cnt = 0
+
+        self.s = sysprops.SysProps()
+        self.collect_PID_data = False
+        if self.collect_PID_data:
+            self.PID_store = np.empty((500,22), dtype=float)
         
+        self.dbg_cnt = 0
+        #
         self.cur_x = 70.0
         self.cur_y = 70.0
         self.distance = 0.0
@@ -198,6 +203,10 @@ class Tracker:
                 # if self.dbg_cnt % 50 == 0:
                 #     self.logger.info("m_fwd: vel: %3.3f, r_dist: %3.3f, PID: %3.3f" % (vel, r_dist, PID_val))
             self.m.signal(self.m.STOP, 0)
+            
+            if self.collect_PID_data:
+                self.dump_PID_store(self.PID_store)
+
             self.logger.info("Tracker.move_dist(%3.3f) done: vel: %3.3f, r_dist: %3.3f, PID: %3.3f" % (meter, vel, r_dist, PID_val))
 
         except:
@@ -249,6 +258,13 @@ class Tracker:
         """
         if self.Ta < self.Ts:
             time.sleep(self.Ts - self.Ta) # maintain sampling rate
+
+        # See if we are dumping the array to file
+        if self.collect_PID_data:
+            self.PID_store[self.dbg_cnt] = np.copy(self.inertial_data[0])
+            self.dbg_cnt = self.dbg_cnt + 1
+            if self.dbg_cnt >= 499:
+                self.dump_PID_store(self.PID_store)
         # Rotate the inertial_data array so that index 0 is ready to accept new values
         for i in range(self.BUFSZ - 1, 0, -1):
             self.inertial_data[i] = self.inertial_data[i - 1]
@@ -376,7 +392,7 @@ class Tracker:
             Adjust power to the wheels relative to how many degrees remaining to turn
             Return the remaining angle
         """
-        giveup = 200
+        giveup = 500 # If we haven't completed the turn in 5 sec, give up
         self.buf_reset()
         self.Ta = self.Ts    # Reset the actual sample time to avoid unexpected startup conditions
         self.first_run = True
@@ -397,10 +413,14 @@ class Tracker:
             completed_angle = self.inertial_data[0, self.angle_z]
             turn_angle = rel_angle - completed_angle
             giveup = giveup - 1
-            print("Angle: %3.2f Compl: %3.2f Remain: %3.2f PID %3.2f Iter: %d P: %3.2f I: %3.2f D: %3.2f Ta: %3.2f Gyr Z %3.2f" %
-                  (rel_angle, completed_angle, turn_angle, PID, giveup, self.inertial_data[0, self.rot_P], self.inertial_data[0, self.rot_I], self.inertial_data[0, self.rot_D], self.Ta, self.inertial_data[0, self.gyr_z]))
+            # print("Angle: %3.2f Compl: %3.2f Remain: %3.2f PID %3.2f Iter: %d P: %3.2f I: %3.2f D: %3.2f Ta: %3.2f Gyr Z %3.2f" %
+            #       (rel_angle, completed_angle, turn_angle, PID, giveup, self.inertial_data[0, self.rot_P], self.inertial_data[0, self.rot_I], self.inertial_data[0, self.rot_D], self.Ta, self.inertial_data[0, self.gyr_z]))
             
         self.m.signal(self.m.STOP, 0.0)
+        
+        if self.collect_PID_data:
+            self.dump_PID_store(self.PID_store)
+
         return turn_angle
 
     def PIDturn(self, turn_setpoint):
@@ -458,7 +478,10 @@ class Tracker:
             i = i + 1
         np.savetxt(filename, dump_buf)
             
-        
+    def dump_PID_store(self, PID_store):
+        path = os.path.join(self.s.logdir, "PID_data_log_" + str(time.time()) + ".csv")
+        np.savetxt(path, PID_store[0:self.dbg_cnt], "%3.2f", delimiter=',')
+        self.dbg_cnt = 0
 
 class Gyro:
     """ Interface to the ITG3205 gyro chip on the 9-degrees of freedom
