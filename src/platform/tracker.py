@@ -20,7 +20,7 @@ class Tracker:
     """
     def __init__(self):
         self.BUFSZ = 5
-        self.inertial_data = np.zeros((self.BUFSZ, 23), dtype=float)
+        self.inertial_data = np.zeros((self.BUFSZ, 24), dtype=float)
         # Accessors for the inertial_data cells
         self.tstamp  = 0
         self.acc_x   = 1
@@ -45,11 +45,13 @@ class Tracker:
         self.rot_I   = 20
         self.rot_D   = 21
         self.samplingtime=22
+        self.tsleep = 23
         
         self.first_run = True
         self.Fs = 100.0 # sample rate, Hz
-        self.Ts = 1.0 / self.Fs # Pre calculate sleep time
-        self.Ta = self.Ts # Will be filled in with actual sampling period
+        self.Ts = 1.0 / self.Fs # Pre calculate sampling period
+        self.Ta = 0.0 # Will be filled in with actual sampling period
+        self.sensor_read_time = 0.003 # Should maybe be measured? Or taken from sysprops?
         
         self.Kp_steer = 5
         self.Ki_steer = 2
@@ -60,9 +62,9 @@ class Tracker:
         self.Kd_turn = 1
 
         self.s = sysprops.SysProps()
-        self.collect_PID_data = False
+        self.collect_PID_data = True
         if self.collect_PID_data:
-            self.PID_store = np.empty((500,23), dtype=float)
+            self.PID_store = np.empty((500,24), dtype=float)
         
         self.dbg_cnt = 0
         #
@@ -158,7 +160,7 @@ class Tracker:
         self.buf_reset()
         r_dist = meter
         off_course_angle = 0
-        self.Ta = self.Ts # Will be filled in with actual sampling period
+        self.Ta = 0.0 # Will be filled in with actual sampling period
         self.first_run = True
         num_iter = 0
         failure = 0
@@ -169,7 +171,7 @@ class Tracker:
             num_iter = 0 # Count the number of attempts
             velocity = 0.0
             steer_setpoint = 0.0 # Set point for the steering PID regulator
-
+            self.t_now = time.time()
             while math.fabs(r_dist) > 0.05 and num_iter < 400:
                 if r_dist > 0.05:
                     power = self.m.MIN_PWR + r_dist * 200
@@ -254,29 +256,52 @@ class Tracker:
             
     def get_inertial_measurements(self):
         """ Sample data from the inertial navigation sensors and prepare the values for the PID regulators.
-        Acceleration data and gyro data is sampled at Fs
-        Operates directly on the class buffers: acc_buf, gyro_buf, P_buf, I_buf and D_buf
+            Acceleration data and gyro data is sampled at Fs
+            Operates directly on the class buffer inertial_data
         """
-        if self.Ta < self.Ts:
-            time.sleep(self.Ts - self.Ta) # maintain sampling rate
 
-        # See if we are dumping the array to file
-        if self.collect_PID_data:
-            self.PID_store[self.dbg_cnt] = np.copy(self.inertial_data[0])
-            self.dbg_cnt = self.dbg_cnt + 1
-            if self.dbg_cnt >= 499:
-                self.dump_PID_store(self.PID_store)
-        # Rotate the inertial_data array so that index 0 is ready to accept new values
-        for i in range(self.BUFSZ - 1, 0, -1):
-            self.inertial_data[i] = self.inertial_data[i - 1]
+        if not self.first_run:
+            # See if we are dumping the array to file
+            if self.collect_PID_data:
+                self.PID_store[self.dbg_cnt] = np.copy(self.inertial_data[0])
+                self.dbg_cnt = self.dbg_cnt + 1
+                if self.dbg_cnt >= 499:
+                    self.dump_PID_store(self.PID_store)
 
+            # Rotate the inertial_data array so that index 0 is ready to accept new values
+            for i in range(self.BUFSZ - 1, 0, -1):
+                self.inertial_data[i] = self.inertial_data[i - 1]
+
+
+        # Maintain correct sampling interval
+        self.t_before_sleep = time.time()
+        if not self.first_run:
+            difftime = self.t_before_sleep - self.inertial_data[1, self.tstamp]
+        else:
+            difftime = 0.0
+        sleeptime = self.Ts - difftime - self.sensor_read_time
+        if sleeptime > 0.001 :
+            time.sleep(sleeptime) # maintain sampling rate
+        self.inertial_data[0, self.tsleep] = sleeptime
         # Read the raw data from the inertial navigation sensors
         acc = self.a.getAxes()
         gyr = self.g.read()
-        t_now = time.time()
+        self.t_prev = self.t_now
+        self.t_now = time.time()
+
+        # Calculate actual time elapsed since previous sample, Ta
+        if not self.first_run:
+            self.Ta = self.t_now - self.t_prev
+        else:
+            self.Ta = 0.0
+            self.first_run = False
+        self.inertial_data[0, self.samplingtime] = self.Ta
+
+        
 
         # Store the most recent raw data at index 0 in the inertial_data buffer
-        self.inertial_data[0, self.tstamp] = t_now
+        self.inertial_data[0, self.tstamp] = self.t_now
+        
         self.inertial_data[0, self.acc_x] = acc[0] - self.x_offset
         self.inertial_data[0, self.acc_y] = acc[1] - self.y_offset
         self.inertial_data[0, self.acc_z] = acc[2] - self.z_offset
@@ -284,13 +309,7 @@ class Tracker:
         self.inertial_data[0, self.gyr_y] = gyr[1]
         self.inertial_data[0, self.gyr_z] = gyr[2]
 
-        # Calculate actual time elapsed since previous sample, Ta
-        if not self.first_run:
-            self.Ta = self.inertial_data[0, self.tstamp] - self.inertial_data[1, self.tstamp]
-        else:
-            self.Ta = 0.0
-            self.first_run = False
-        self.inertial_data[0, self.samplingtime] = self.Ta
+
         
         instant_gyro = self.inertial_data[0, self.gyr_z] # It's the rotation about the Z axis we're using
 
@@ -302,7 +321,6 @@ class Tracker:
         self.inertial_data[0, self.vel_z] = self.inertial_data[1, self.vel_z] + self.inertial_data[0, self.acc_z] * self.Ta
 
 
-        # return adj_accel, adj_gyro
 
     def remaining_dist(self, velocity, prev_velocity, prev_distance):
         remaining = prev_distance - self.Ta * (prev_velocity + 0.5 * (velocity - prev_velocity))
@@ -393,15 +411,17 @@ class Tracker:
         """
         giveup = 500 # If we haven't completed the turn in 5 sec, give up
         self.buf_reset()
-        self.Ta = self.Ts    # Reset the actual sample time to avoid unexpected startup conditions
+        # self.Ta = self.Ts    # Reset the actual sample time to avoid unexpected startup conditions
         self.first_run = True
         completed_angle = 0.0
         while rel_angle < -180.0:
             rel_angle = rel_angle + 360.0
         while rel_angle > 180.0:
             rel_angle = rel_angle - 360.0
+            
 
         turn_angle = rel_angle
+        self.t_now = time.time()
         while (turn_angle > 1.0 or turn_angle < -1.0) and giveup > 0:
             self.get_inertial_measurements()
             PID = self.PIDturn(turn_angle)
@@ -412,9 +432,7 @@ class Tracker:
             completed_angle = self.inertial_data[0, self.angle_z]
             turn_angle = rel_angle - completed_angle
             giveup = giveup - 1
-            # print("Angle: %3.2f Compl: %3.2f Remain: %3.2f PID %3.2f Iter: %d P: %3.2f I: %3.2f D: %3.2f Ta: %3.2f Gyr Z %3.2f" %
-            #       (rel_angle, completed_angle, turn_angle, PID, giveup, self.inertial_data[0, self.rot_P], self.inertial_data[0, self.rot_I], self.inertial_data[0, self.rot_D], self.Ta, self.inertial_data[0, self.gyr_z]))
-            
+                        
         self.m.signal(self.m.STOP, 0.0)
         
         if self.collect_PID_data:
@@ -458,28 +476,13 @@ class Tracker:
             for j in range(self.inertial_data[0].size):
                 self.inertial_data[i, j] = 0.0
                 
-    def dump_buf(self, filename):
-        i = self.buf_idx
-        j = 0
-        dump_buf = np.zeros((self.BUFSZ, 3), dtype=float)
-        while i < self.BUFSZ:
-            # dump_buf[j, 0] = self.tstamp[i]
-            dump_buf[j, 1] = self.gyro_buf[i]
-            dump_buf[j, 2] = self.acc_buf[i]
-            j = j + 1
-            i = i + 1
-        i = 0
-        while i < self.buf_idx:
-            # dump_buf[j, 0] = self.tstamp[i]
-            dump_buf[j, 1] = self.gyro_buf[i]
-            dump_buf[j, 2] = self.acc_buf[i]
-            j = j + 1
-            i = i + 1
-        np.savetxt(filename, dump_buf)
             
     def dump_PID_store(self, PID_store):
+        hdr = ("tstamp, acc_x, acc_y, acc_z, gyr_x, gyr_y, gyr_z, angle_x, angle_y, angle_z, "
+               "vel_x, vel_y, vel_z, steer_P, steer_I, steer_D, dist_P, dist_I, "
+               "dist_D, rot_P, rot_I, rot_D, samplingtime, tsleep" )
         path = os.path.join(self.s.logdir, "PID_data_log_" + str(time.time()) + ".csv")
-        np.savetxt(path, PID_store[0:self.dbg_cnt], "%3.3f", delimiter=',')
+        np.savetxt(path, PID_store[0:self.dbg_cnt], "%3.3f", header=hdr, delimiter=',')
         self.dbg_cnt = 0
 
 class Gyro:
