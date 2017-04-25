@@ -67,9 +67,9 @@ class Tracker:
         self.Ki_turn = 2
         self.Kd_turn = 1
 
-        self.Kp_dist = 200
+        self.Kp_dist = 300
         self.Ki_dist = 200
-        self.Kd_dist = 50
+        self.Kd_dist = 200
 
         self.s = sysprops.SysProps()
         self.collect_PID_data = self.s.collect_PID_data
@@ -166,6 +166,11 @@ class Tracker:
         return retval
 
     def move_dist_basic(self, meter):
+        """
+        Move the specified distance in meters. Forward or reverse.
+        Employs two PID controllers; one to go the specified distance, and one
+        to run in a straight line (PIDsteer)
+        """
         self.dbg_cnt = 0
         self.buf_reset()
         r_dist = meter
@@ -173,14 +178,15 @@ class Tracker:
         self.Ta = 0.0 # Will be filled in with actual sampling period
         self.first_run = True
         num_iter = 0
-        failure = 0
+        failure = False
+        arrived = False
         self.logger.info("Tracker.move_dist(%3.3f)" % (meter))
         try:
             num_iter = 0 # Count the number of attempts
             velocity = 0.0
             steer_setpoint = 0.0 # Set point for the steering PID regulator
             self.t_now = time.time()
-            while math.fabs(r_dist) > 0.05 and num_iter < 400:
+            while not arrived:
                 power = self.PIDdist(r_dist)
                 if power > 100:
                     power = 100
@@ -205,8 +211,13 @@ class Tracker:
                     self.m.signal(self.m.STEER_RIGHT, 0.0 - PID_val)
 
                 num_iter = num_iter + 1
-                # if self.dbg_cnt % 50 == 0:
-                #     self.logger.info("m_fwd: vel: %3.3f, r_dist: %3.3f, PID: %3.3f" % (vel, r_dist, PID_val))
+                if meter < 0.0 and r_dist > -0.01:
+                    arrived = True
+                if meter >= 0.0 and r_dist < 0.01:
+                    arrived = True
+                if num_iter > 500:
+                    arrived = True
+                    failure = True
             self.m.signal(self.m.STOP, 0)
             
             if self.collect_PID_data:
@@ -220,8 +231,8 @@ class Tracker:
             self.logger.error(sys.exc_info())
             print("ERROR: Tracker.move_dist(%3.3f) failed" % (meter))
             print(sys.exc_info())
-            failure = 1
-        if num_iter >= 400 or failure == 1:
+            failure = True
+        if failure:
             return -998
         else:
             return r_dist
@@ -260,7 +271,11 @@ class Tracker:
     def PIDdist(self, setpoint):
         """ The setpoint is the remaining distance to travel. Positive (forward) or negative (reverse)
         """
-        P = setpoint * self.Kp_dist
+        if setpoint >= 0:
+            P = (setpoint * self.Kp_dist) + self.s.motor_min_power
+        else:
+            P = (setpoint * self.Kp_dist) - self.s.motor_min_power
+            
         self.inertial_data[0, self.dist_P] = P
         D = self.inertial_data[0, self.vel_x] * self.Kd_dist
         self.inertial_data[0, self.dist_D] = D
@@ -347,11 +362,6 @@ class Tracker:
         self.inertial_data[0, self.dist_y] = self.inertial_data[1, self.dist_y] + (self.inertial_data[0, self.vel_y] * self.Ta)
         self.inertial_data[0, self.dist_z] = self.inertial_data[1, self.dist_z] + (self.inertial_data[0, self.vel_z] * self.Ta)
 
-
-
-    def remaining_dist(self, velocity, prev_velocity, prev_distance):
-        remaining = prev_distance - self.Ta * (prev_velocity + 0.5 * (velocity - prev_velocity))
-        return remaining
 
     def set_heading(self, hdg):
         if hdg > 180:
