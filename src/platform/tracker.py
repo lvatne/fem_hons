@@ -20,7 +20,6 @@ class Tracker:
     """
     def __init__(self):
         self.BUFSZ = 5
-        self.inertial_data = np.zeros((self.BUFSZ, 24), dtype=float)
         # Accessors for the inertial_data cells
         self.tstamp  = 0
         self.acc_x   = 1
@@ -46,6 +45,13 @@ class Tracker:
         self.rot_D   = 21
         self.samplingtime=22
         self.tsleep = 23
+        self.dist_x = 24
+        self.dist_y = 25
+        self.dist_z = 26
+        self.endmarker = 27
+
+
+        self.inertial_data = np.zeros((self.BUFSZ, self.endmarker), dtype=float)
         
         self.first_run = True
         self.Fs = 100.0 # sample rate, Hz
@@ -62,9 +68,9 @@ class Tracker:
         self.Kd_turn = 1
 
         self.s = sysprops.SysProps()
-        self.collect_PID_data = True
+        self.collect_PID_data = self.s.collect_PID_data
         if self.collect_PID_data:
-            self.PID_store = np.empty((500,24), dtype=float)
+            self.PID_store = np.empty((500, self.endmarker), dtype=float)
         
         self.dbg_cnt = 0
         #
@@ -309,16 +315,20 @@ class Tracker:
         self.inertial_data[0, self.gyr_y] = gyr[1]
         self.inertial_data[0, self.gyr_z] = gyr[2]
 
-
         
         instant_gyro = self.inertial_data[0, self.gyr_z] # It's the rotation about the Z axis we're using
 
-        self.inertial_data[0, self.angle_z] = self.inertial_data[1, self.angle_z] + instant_gyro * self.Ta
-        # Add rotation data for X and Y axis later if required.....
+        self.inertial_data[0, self.angle_x] = self.inertial_data[1, self.angle_x] + (self.inertial_data[0, self.gyr_x] * self.Ta)
+        self.inertial_data[0, self.angle_y] = self.inertial_data[1, self.angle_y] + (self.inertial_data[0, self.gyr_y] * self.Ta)
+        self.inertial_data[0, self.angle_z] = self.inertial_data[1, self.angle_z] + (self.inertial_data[0, self.gyr_z] * self.Ta)
         
-        self.inertial_data[0, self.vel_x] = self.inertial_data[1, self.vel_x] + self.inertial_data[0, self.acc_x] * self.Ta
-        self.inertial_data[0, self.vel_y] = self.inertial_data[1, self.vel_y] + self.inertial_data[0, self.acc_y] * self.Ta
-        self.inertial_data[0, self.vel_z] = self.inertial_data[1, self.vel_z] + self.inertial_data[0, self.acc_z] * self.Ta
+        self.inertial_data[0, self.vel_x] = self.inertial_data[1, self.vel_x] + (self.inertial_data[0, self.acc_x] * self.Ta)
+        self.inertial_data[0, self.vel_y] = self.inertial_data[1, self.vel_y] + (self.inertial_data[0, self.acc_y] * self.Ta)
+        self.inertial_data[0, self.vel_z] = self.inertial_data[1, self.vel_z] + (self.inertial_data[0, self.acc_z] * self.Ta)
+
+        self.inertial_data[0, self.dist_x] = self.inertial_data[1, self.dist_x] + (self.inertial_data[0, self.vel_x] * self.Ta)
+        self.inertial_data[0, self.dist_y] = self.inertial_data[1, self.dist_y] + (self.inertial_data[0, self.vel_y] * self.Ta)
+        self.inertial_data[0, self.dist_z] = self.inertial_data[1, self.dist_z] + (self.inertial_data[0, self.vel_z] * self.Ta)
 
 
 
@@ -419,6 +429,8 @@ class Tracker:
         while rel_angle > 180.0:
             rel_angle = rel_angle - 360.0
             
+        # Empirically add 10% to the turn angle. Due to gyro ?
+        rel_angle = rel_angle + ((rel_angle / 100) * 10)
 
         turn_angle = rel_angle
         self.t_now = time.time()
@@ -480,7 +492,7 @@ class Tracker:
     def dump_PID_store(self, PID_store):
         hdr = ("tstamp, acc_x, acc_y, acc_z, gyr_x, gyr_y, gyr_z, angle_x, angle_y, angle_z, "
                "vel_x, vel_y, vel_z, steer_P, steer_I, steer_D, dist_P, dist_I, "
-               "dist_D, rot_P, rot_I, rot_D, samplingtime, tsleep" )
+               "dist_D, rot_P, rot_I, rot_D, samplingtime, tsleep, dist_x, dist_y, dist_z" )
         path = os.path.join(self.s.logdir, "PID_data_log_" + str(time.time()) + ".csv")
         np.savetxt(path, PID_store[0:self.dbg_cnt], "%3.3f", header=hdr, delimiter=',')
         self.dbg_cnt = 0
