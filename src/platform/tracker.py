@@ -67,6 +67,10 @@ class Tracker:
         self.Ki_turn = 2
         self.Kd_turn = 1
 
+        self.Kp_dist = 200
+        self.Ki_dist = 200
+        self.Kd_dist = 50
+
         self.s = sysprops.SysProps()
         self.collect_PID_data = self.s.collect_PID_data
         if self.collect_PID_data:
@@ -172,31 +176,23 @@ class Tracker:
         failure = 0
         self.logger.info("Tracker.move_dist(%3.3f)" % (meter))
         try:
-            
-
             num_iter = 0 # Count the number of attempts
             velocity = 0.0
             steer_setpoint = 0.0 # Set point for the steering PID regulator
             self.t_now = time.time()
             while math.fabs(r_dist) > 0.05 and num_iter < 400:
-                if r_dist > 0.05:
-                    power = self.m.MIN_PWR + r_dist * 200
-                    if power > 100:
-                        power = 100
-                elif r_dist < -0.05:
-                    power = 0.0 - self.m.MIN_PWR + r_dist * 200
-                    if power < -100:
-                        power = -100
-                if power >= 0:
+                power = self.PIDdist(r_dist)
+                if power > 100:
+                    power = 100
+                if power < -100:
+                    power = -100
+                if power > 0:
                     self.m.signal(self.m.RUN_FWD, power)
                 else:
                     self.m.signal(self.m.RUN_REV, 0.0 - power)
                 self.get_inertial_measurements()
-
                 
-                # Get current velocity.... it's already calculated in inertial....
-                vel = self.inertial_data[0, self.vel_x]
-                r_dist = self.remaining_dist(vel, self.inertial_data[1, self.vel_x], r_dist)
+                r_dist = meter - self.inertial_data[0, self.dist_x]
                 PID_val = self.PIDsteer(steer_setpoint)
                 # print("m_fwd: vel: %3.3f, r_dist: %3.3f, PID: %3.3f" % (vel, r_dist, PID_val))
                 if PID_val >= 0:
@@ -216,18 +212,19 @@ class Tracker:
             if self.collect_PID_data:
                 self.dump_PID_store(self.PID_store)
 
-            self.logger.info("Tracker.move_dist(%3.3f) done: vel: %3.3f, r_dist: %3.3f, PID: %3.3f" % (meter, vel, r_dist, PID_val))
+            self.logger.info("Tracker.move_dist(%3.3f) done: r_dist: %3.3f" % (meter, r_dist))
 
         except:
             self.m.signal(self.m.STOP, 0)
-            raise()
             self.logger.error("Tracker.move_dist(%3.3f) failed" % (meter))
+            self.logger.error(sys.exc_info())
             print("ERROR: Tracker.move_dist(%3.3f) failed" % (meter))
+            print(sys.exc_info())
             failure = 1
         if num_iter >= 400 or failure == 1:
-            return 1
+            return -998
         else:
-            return 0
+            return r_dist
 
     def PIDsteer(self, setpoint):
         """ Calculate the error value to apply to the steering to keep the robot
@@ -259,6 +256,26 @@ class Tracker:
             CO = 100.0
         # print("P: %2.3f I: %2.3f D: %2.3f E: %2.3f CO: %2.3f" % (P, I, D, errval, CO))
         return CO
+
+    def PIDdist(self, setpoint):
+        """ The setpoint is the remaining distance to travel. Positive (forward) or negative (reverse)
+        """
+        P = setpoint * self.Kp_dist
+        self.inertial_data[0, self.dist_P] = P
+        D = self.inertial_data[0, self.vel_x] * self.Kd_dist
+        self.inertial_data[0, self.dist_D] = D
+        max_p = max(self.inertial_data[0, self.dist_x], self.inertial_data[1, self.dist_x])
+        min_p = min(self.inertial_data[0, self.dist_x], self.inertial_data[1, self.dist_x])
+        I = ((max_p - min_p) * self.Ta + (min_p * self.Ta)) * self.Ki_dist
+        self.inertial_data[0, self.dist_I] = I
+
+        power = P + I + D
+        if power > 100:
+            power = 100
+        elif power < -100:
+            power = -100
+            
+        return power
             
     def get_inertial_measurements(self):
         """ Sample data from the inertial navigation sensors and prepare the values for the PID regulators.
