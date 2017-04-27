@@ -13,12 +13,11 @@ t = tracker.Tracker()
 #    t.get_inertial_measurements()
 #    print(t.inertial_data)
 
-dst = t.move_dist_basic(1)
+dst = t.move_dist_basic(0.65)
 print("Moved %3.2f meters" % (dst))
-time.sleep(1)
-dst = t.move_dist_basic(-0.5)
+dst = t.move_dist_basic(-0.65)
 print("Moved %3.2f meters" % (dst))
-time.sleep(1)
+"""
 dst = t.move_dist_basic(0.5)
 print("Moved %3.2f meters" % (dst))
 time.sleep(1)
@@ -36,7 +35,7 @@ an = t.turn_relative_basic(90.0)
 print("Turned %3.2f degrees" % (an))
 time.sleep(1)
 an = t.turn_relative_basic(90.0)
-
+"""
 # t.move_dist(0.5)
 
 # an = t.turn_relative_basic(45.0)

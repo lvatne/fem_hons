@@ -19,7 +19,7 @@ class Tracker:
     roll the desired distance and rotate the desired number of degrees.
     """
     def __init__(self):
-        self.BUFSZ = 5
+        self.BUFSZ = 10
         # Accessors for the inertial_data cells
         self.tstamp  = 0
         self.acc_x   = 1
@@ -48,13 +48,16 @@ class Tracker:
         self.dist_x = 24
         self.dist_y = 25
         self.dist_z = 26
-        self.endmarker = 27
+        self.flt_acc_x = 27
+        self.flt_acc_y = 28
+        self.flt_acc_z = 29
+        self.endmarker = 30
 
 
         self.inertial_data = np.zeros((self.BUFSZ, self.endmarker), dtype=float)
         
         self.first_run = True
-        self.Fs = 100.0 # sample rate, Hz
+        self.Fs = 200.0 # sample rate, Hz
         self.Ts = 1.0 / self.Fs # Pre calculate sampling period
         self.Ta = 0.0 # Will be filled in with actual sampling period
         self.sensor_read_time = 0.003 # Should maybe be measured? Or taken from sysprops?
@@ -97,19 +100,20 @@ class Tracker:
         self.m.signal(self.m.STOP, 0)
 
     def calibrate_accelerometer_offset(self) :
+        revs = 10
         # Get calibrated acceleration offset
         self.x_offset = 0.0
         self.y_offset = 0.0
         self.z_offset = 0.0
-        for i in range(5):
-            time.sleep(0.1)
+        for i in range(revs):
+            time.sleep(0.03)
             acc = self.a.getAxes()
             self.x_offset = self.x_offset + acc[0]
             self.y_offset = self.y_offset + acc[1]
             self.z_offset = self.z_offset + acc[2]
-        self.x_offset = self.x_offset / 5
-        self.y_offset = self.y_offset / 5
-        self.z_offset = self.z_offset / 5
+        self.x_offset = self.x_offset / revs
+        self.y_offset = self.y_offset / revs
+        self.z_offset = self.z_offset / revs
         
 
     def move_dist(self, meter):
@@ -172,54 +176,70 @@ class Tracker:
         to run in a straight line (PIDsteer)
         """
         self.dbg_cnt = 0
+        self.prev_power = 0.0
         self.buf_reset()
         r_dist = meter
         off_course_angle = 0
         self.Ta = 0.0 # Will be filled in with actual sampling period
         self.first_run = True
-        num_iter = 0
+        num_iter = self.calc_bailout_dist(meter)
         failure = False
         arrived = False
-        self.logger.info("Tracker.move_dist(%3.3f)" % (meter))
+        self.logger.info("Tracker.move_dist(%3.3f), %d iterations" % (meter, num_iter))
+        self.t_now = time.time()
+        self.calibrate_accelerometer_offset()
         try:
-            num_iter = 0 # Count the number of attempts
             velocity = 0.0
             steer_setpoint = 0.0 # Set point for the steering PID regulator
-            self.t_now = time.time()
             while not arrived:
                 power = self.PIDdist(r_dist)
                 if power > 100:
                     power = 100
                 if power < -100:
                     power = -100
-                if power > 0:
-                    self.m.signal(self.m.RUN_FWD, power)
-                else:
-                    self.m.signal(self.m.RUN_REV, 0.0 - power)
+                if math.floor(power) != math.floor(self.prev_power): # Don't change the power setting unneccessarily
+                    if power > 0:
+                        self.m.signal(self.m.RUN_FWD, power)
+                    else:
+                        self.m.signal(self.m.RUN_REV, 0.0 - power)
+                self.prev_power = power
+                
                 self.get_inertial_measurements()
                 
                 r_dist = meter - self.inertial_data[0, self.dist_x]
+                
                 PID_val = self.PIDsteer(steer_setpoint)
-                # print("m_fwd: vel: %3.3f, r_dist: %3.3f, PID: %3.3f" % (vel, r_dist, PID_val))
-                if PID_val >= 0:
-                    if PID_val > 100:
-                        PID_val = 100
-                    self.m.signal(self.m.STEER_LEFT, PID_val)
-                else:
-                    if PID_val < -100:
-                        PID_val = -100
-                    self.m.signal(self.m.STEER_RIGHT, 0.0 - PID_val)
 
-                num_iter = num_iter + 1
+                if r_dist > 0: # We're going forward
+                    if PID_val >= 0:
+                        self.m.signal(self.m.STEER_LEFT, PID_val)
+                    else:
+                        self.m.signal(self.m.STEER_RIGHT, 0.0 - PID_val)
+                else: # We're going in reverse
+                    if PID_val >= 0:
+                        self.m.signal(self.m.STEER_RIGHT, PID_val)
+                    else:
+                        self.m.signal(self.m.STEER_LEFT, 0.0 - PID_val)
+                    
+
+                num_iter = num_iter - 1
                 if meter < 0.0 and r_dist > -0.01:
                     arrived = True
+                    print("Arrived going backwards")
                 if meter >= 0.0 and r_dist < 0.01:
                     arrived = True
-                if num_iter > 500:
+                    print("Arrived going forwards")
+                if num_iter <= 0:
                     arrived = True
                     failure = True
             self.m.signal(self.m.STOP, 0)
-            
+
+            # Allow .2 sec to coast to a halt
+            num_extra = int(self.Fs / 5)
+            for i in range(num_extra):
+                self.get_inertial_measurements()                
+                r_dist = meter - self.inertial_data[0, self.dist_x]
+                
             if self.collect_PID_data:
                 self.dump_PID_store(self.PID_store)
 
@@ -340,13 +360,14 @@ class Tracker:
         # Store the most recent raw data at index 0 in the inertial_data buffer
         self.inertial_data[0, self.tstamp] = self.t_now
         
-        self.inertial_data[0, self.acc_x] = acc[0] - self.x_offset
-        self.inertial_data[0, self.acc_y] = acc[1] - self.y_offset
-        self.inertial_data[0, self.acc_z] = acc[2] - self.z_offset
+        self.inertial_data[0, self.acc_x] = acc[0] # - self.x_offset
+        self.inertial_data[0, self.acc_y] = acc[1] # - self.y_offset
+        self.inertial_data[0, self.acc_z] = acc[2] # - self.z_offset
         self.inertial_data[0, self.gyr_x] = gyr[0]
         self.inertial_data[0, self.gyr_y] = gyr[1]
         self.inertial_data[0, self.gyr_z] = gyr[2]
 
+        self.hanning_filter()
         
         instant_gyro = self.inertial_data[0, self.gyr_z] # It's the rotation about the Z axis we're using
 
@@ -354,14 +375,32 @@ class Tracker:
         self.inertial_data[0, self.angle_y] = self.inertial_data[1, self.angle_y] + (self.inertial_data[0, self.gyr_y] * self.Ta)
         self.inertial_data[0, self.angle_z] = self.inertial_data[1, self.angle_z] + (self.inertial_data[0, self.gyr_z] * self.Ta)
         
-        self.inertial_data[0, self.vel_x] = self.inertial_data[1, self.vel_x] + (self.inertial_data[0, self.acc_x] * self.Ta)
-        self.inertial_data[0, self.vel_y] = self.inertial_data[1, self.vel_y] + (self.inertial_data[0, self.acc_y] * self.Ta)
-        self.inertial_data[0, self.vel_z] = self.inertial_data[1, self.vel_z] + (self.inertial_data[0, self.acc_z] * self.Ta)
+        # self.inertial_data[0, self.vel_x] = self.inertial_data[1, self.vel_x] + (self.inertial_data[0, self.acc_x] * self.Ta)
+        self.inertial_data[0, self.vel_x] = self.inertial_data[1, self.vel_x] + (self.inertial_data[0, self.flt_acc_x] * self.Ta)
+        self.inertial_data[0, self.vel_y] = self.inertial_data[1, self.vel_y] + (self.inertial_data[0, self.flt_acc_y] * self.Ta)
+        self.inertial_data[0, self.vel_z] = self.inertial_data[1, self.vel_z] + (self.inertial_data[0, self.flt_acc_z] * self.Ta)
 
         self.inertial_data[0, self.dist_x] = self.inertial_data[1, self.dist_x] + (self.inertial_data[0, self.vel_x] * self.Ta)
         self.inertial_data[0, self.dist_y] = self.inertial_data[1, self.dist_y] + (self.inertial_data[0, self.vel_y] * self.Ta)
         self.inertial_data[0, self.dist_z] = self.inertial_data[1, self.dist_z] + (self.inertial_data[0, self.vel_z] * self.Ta)
 
+
+    def hanning_filter(self):
+        """
+        Moving average filter with double weight on present value. Filter the x, y, z acceleration values
+        """
+        
+        filtered_value_x = 2 * (self.inertial_data[0, self.acc_x] - self.x_offset)
+        filtered_value_y = 2 * (self.inertial_data[0, self.acc_y] - self.y_offset)
+        filtered_value_z = 2 * (self.inertial_data[0, self.acc_z] - self.z_offset)
+        for i in range(1, self.BUFSZ):
+            filtered_value_x = filtered_value_x + self.inertial_data[i, self.flt_acc_x]
+            filtered_value_y = filtered_value_y + self.inertial_data[i, self.flt_acc_y]
+            filtered_value_z = filtered_value_z + self.inertial_data[i, self.flt_acc_z]
+        self.inertial_data[0, self.flt_acc_x] = filtered_value_x / (self.BUFSZ + 1)
+        self.inertial_data[0, self.flt_acc_y] = filtered_value_y / (self.BUFSZ + 1)
+        self.inertial_data[0, self.flt_acc_z] = filtered_value_z / (self.BUFSZ + 1)
+    
 
     def set_heading(self, hdg):
         if hdg > 180:
@@ -462,7 +501,7 @@ class Tracker:
         turn_angle = rel_angle
         self.t_now = time.time()
         while (turn_angle > 1.0 or turn_angle < -1.0) and giveup > 0:
-            self.get_inertial_measurements()
+            self.get_inertial_measurements(0.0)
             PID = self.PIDturn(turn_angle)
             if PID >= 0.0:
                 self.m.signal(self.m.TURN_RIGHT, PID)
@@ -473,6 +512,13 @@ class Tracker:
             giveup = giveup - 1
                         
         self.m.signal(self.m.STOP, 0.0)
+
+        # Allow .2 sec to coast to a halt
+        num_extra = int(self.Fs / 5)
+        for i in range(num_extra):
+            self.get_inertial_measurements(0.0)                
+            completed_angle = self.inertial_data[0, self.angle_z]
+            turn_angle = rel_angle - completed_angle
         
         if self.collect_PID_data:
             self.dump_PID_store(self.PID_store)
@@ -501,7 +547,18 @@ class Tracker:
 
         return CO
         
-        
+    def calc_bailout_dist(self, meters):
+        """
+        Calculate the maximum number of samples required to achieve goal
+        Assume a speed of 0.5 m/s
+        """
+        max_speed = 0.5
+        if meters < 0.0:
+            meters = 0.0 - meters
+        num_sec = meters / max_speed
+        iterations = self.Fs * num_sec
+        iterations = iterations * 4.0
+        return int(iterations)
         
     def turn(self, angle, hdg):
         """ Adjust the relative power of the motors while running forward
@@ -519,7 +576,8 @@ class Tracker:
     def dump_PID_store(self, PID_store):
         hdr = ("tstamp, acc_x, acc_y, acc_z, gyr_x, gyr_y, gyr_z, angle_x, angle_y, angle_z, "
                "vel_x, vel_y, vel_z, steer_P, steer_I, steer_D, dist_P, dist_I, "
-               "dist_D, rot_P, rot_I, rot_D, samplingtime, tsleep, dist_x, dist_y, dist_z" )
+               "dist_D, rot_P, rot_I, rot_D, samplingtime, tsleep, dist_x, dist_y, dist_z, "
+               "flt_acc_x, flt_acc_y, flt_acc_z")
         path = os.path.join(self.s.logdir, "PID_data_log_" + str(time.time()) + ".csv")
         np.savetxt(path, PID_store[0:self.dbg_cnt], "%3.3f", header=hdr, delimiter=',')
         self.dbg_cnt = 0
