@@ -19,7 +19,7 @@ class Tracker:
     roll the desired distance and rotate the desired number of degrees.
     """
     def __init__(self):
-        self.BUFSZ = 10
+        self.BUFSZ = 5
         # Accessors for the inertial_data cells
         self.tstamp  = 0
         self.acc_x   = 1
@@ -80,6 +80,7 @@ class Tracker:
             self.PID_store = np.empty((500, self.endmarker), dtype=float)
         
         self.dbg_cnt = 0
+        self.alpha = 0.05  # Damping factor for the accelerometer low-pass filter
         #
         self.cur_x = 70.0
         self.cur_y = 70.0
@@ -367,15 +368,21 @@ class Tracker:
         self.inertial_data[0, self.gyr_y] = gyr[1]
         self.inertial_data[0, self.gyr_z] = gyr[2]
 
-        self.hanning_filter()
+        # self.hanning_filter()
+        self.lowpass_filter()
         
         instant_gyro = self.inertial_data[0, self.gyr_z] # It's the rotation about the Z axis we're using
 
         self.inertial_data[0, self.angle_x] = self.inertial_data[1, self.angle_x] + (self.inertial_data[0, self.gyr_x] * self.Ta)
         self.inertial_data[0, self.angle_y] = self.inertial_data[1, self.angle_y] + (self.inertial_data[0, self.gyr_y] * self.Ta)
         self.inertial_data[0, self.angle_z] = self.inertial_data[1, self.angle_z] + (self.inertial_data[0, self.gyr_z] * self.Ta)
-        
+
+        # Use unfiltered acceleration values
         # self.inertial_data[0, self.vel_x] = self.inertial_data[1, self.vel_x] + (self.inertial_data[0, self.acc_x] * self.Ta)
+        # self.inertial_data[0, self.vel_y] = self.inertial_data[1, self.vel_y] + (self.inertial_data[0, self.acc_y] * self.Ta)
+        # self.inertial_data[0, self.vel_z] = self.inertial_data[1, self.vel_z] + (self.inertial_data[0, self.acc_z] * self.Ta)
+
+        # Use filtered acceleration values
         self.inertial_data[0, self.vel_x] = self.inertial_data[1, self.vel_x] + (self.inertial_data[0, self.flt_acc_x] * self.Ta)
         self.inertial_data[0, self.vel_y] = self.inertial_data[1, self.vel_y] + (self.inertial_data[0, self.flt_acc_y] * self.Ta)
         self.inertial_data[0, self.vel_z] = self.inertial_data[1, self.vel_z] + (self.inertial_data[0, self.flt_acc_z] * self.Ta)
@@ -400,7 +407,13 @@ class Tracker:
         self.inertial_data[0, self.flt_acc_x] = filtered_value_x / (self.BUFSZ + 1)
         self.inertial_data[0, self.flt_acc_y] = filtered_value_y / (self.BUFSZ + 1)
         self.inertial_data[0, self.flt_acc_z] = filtered_value_z / (self.BUFSZ + 1)
-    
+
+
+    def lowpass_filter(self):
+         self.inertial_data[0, self.flt_acc_x] = (self.inertial_data[0, self.acc_x] * self.alpha) + (self.inertial_data[1, self.flt_acc_x] * (1.0 - self.alpha))
+         self.inertial_data[0, self.flt_acc_y] = (self.inertial_data[0, self.acc_y] * self.alpha) + (self.inertial_data[1, self.flt_acc_y] * (1.0 - self.alpha))
+         self.inertial_data[0, self.flt_acc_z] = (self.inertial_data[0, self.acc_z] * self.alpha) + (self.inertial_data[1, self.flt_acc_z] * (1.0 - self.alpha))
+         
 
     def set_heading(self, hdg):
         if hdg > 180:
@@ -501,7 +514,7 @@ class Tracker:
         turn_angle = rel_angle
         self.t_now = time.time()
         while (turn_angle > 1.0 or turn_angle < -1.0) and giveup > 0:
-            self.get_inertial_measurements(0.0)
+            self.get_inertial_measurements()
             PID = self.PIDturn(turn_angle)
             if PID >= 0.0:
                 self.m.signal(self.m.TURN_RIGHT, PID)
@@ -516,7 +529,7 @@ class Tracker:
         # Allow .2 sec to coast to a halt
         num_extra = int(self.Fs / 5)
         for i in range(num_extra):
-            self.get_inertial_measurements(0.0)                
+            self.get_inertial_measurements()                
             completed_angle = self.inertial_data[0, self.angle_z]
             turn_angle = rel_angle - completed_angle
         
@@ -550,14 +563,14 @@ class Tracker:
     def calc_bailout_dist(self, meters):
         """
         Calculate the maximum number of samples required to achieve goal
-        Assume a speed of 0.5 m/s
+        Assume an average speed of 0.25 m/s
         """
-        max_speed = 0.5
+        avg_speed = 0.25  # m/s
         if meters < 0.0:
             meters = 0.0 - meters
-        num_sec = meters / max_speed
+        num_sec = meters / avg_speed
         iterations = self.Fs * num_sec
-        iterations = iterations * 4.0
+        iterations = iterations * 1.25 # Add 25%...
         return int(iterations)
         
     def turn(self, angle, hdg):
@@ -673,7 +686,7 @@ class Accelerometer:
         self.bus = smbus.SMBus(1)
 
         self.address = address
-        self.setBandwidthRate(self.BW_RATE_100HZ)
+        self.setBandwidthRate(self.BW_RATE_200HZ)
         self.setRange(self.RANGE_2G)
         self.enableMeasurement()
 
