@@ -2,7 +2,7 @@
 
 import numpy as np
 import tracker
-from gps3 import agps3
+import gps3
 import utm
 import os
 import threading
@@ -69,10 +69,10 @@ class GPSrunner (threading.Thread):
     def run(self):
         print("GPSrunner starting")
         self.quit = False
-        self.gpsd_socket = agps3.GPSDSocket()
+        self.gpsd_socket = gps3.GPSDSocket()
         self.gpsd_socket.connect(host='localhost', port=2947)
         self.gpsd_socket.watch()
-        self.data_stream = agps3.DataStream()
+        self.data_stream = gps3.DataStream()
         try:
             for new_data in self.gpsd_socket:
                 if new_data:
@@ -80,13 +80,13 @@ class GPSrunner (threading.Thread):
                         break;
                     self.data_stream.unpack(new_data)
                     with self.mutex:
-                        self.speed = self.data_stream.speed
-                        self.latitude = self.data_stream.lat
-                        self.longitude = self.data_stream.lon
-                        # self.altitude = self.data_stream.alt
-                        self.heading = self.data_stream.track
-                        self.gpsTime = self.data_stream.time
-                        self.mode = self.data_stream.mode
+                        self.speed = self.data_stream.TPV['speed']
+                        self.latitude = self.data_stream.TPV['lat']
+                        self.longitude = self.data_stream.TPV['lon']
+                        self.altitude = self.data_stream.TPV['alt']
+                        self.heading = self.data_stream.TPV['track']
+                        self.gpsTime = self.data_stream.TPV['time']
+                        self.mode = self.data_stream.TPV['mode']
                     # print("Lat: %s Lon: %s Hdg: %s Time: %s" % (self.latitude, self.longitude, self.heading, self.gpsTime))
                     self.buf[self.buf_idx, 0] = float(time.time())
                     try:
