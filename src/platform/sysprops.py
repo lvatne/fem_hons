@@ -57,6 +57,10 @@ class SysProps:
         self.right_forward=int(self.props['right_forward'])
         self.right_reverse=int(self.props['right_reverse'])
         self.collect_PID_data = bool(self.props['collect_PID_data'])
+        if self.props['collect_PID_data'] == 'False' :
+            self.collect_PID_data = False
+        else:
+            self.collect_PID_data = True
         
 
     def set(self, key, value):

@@ -9,6 +9,7 @@ import cv2
 import logging
 import sysprops
 
+
 class ImageOperations:
 
     def __init__(self, img, width, height):
@@ -26,6 +27,16 @@ class ImageOperations:
         self.new_width = width
         self.new_height = height
         self.bottom_x_offset = 0
+        # self.adjust_brightness()
+
+    def adjust_brightness(self):
+        img_yuv = cv2.cvtColor(self.img, cv2.COLOR_BGR2YUV)
+        # equalize the histogram of the Y channel
+        img_yuv[:,:,0] = cv2.equalizeHist(img_yuv[:,:,0])
+        # convert the YUV image back to RGB format
+        self.adj_img = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR)
+        self.alt_img = self.adj_img
+
 
     def get_image(self):
         return self.img
@@ -66,21 +77,27 @@ class ImageOperations:
     image). Return a cv2 Keypoints list.
     """
         # Convert BGR to HSV
-        hsv = cv2.cvtColor(self.alt_img, cv2.COLOR_BGR2HSV)
+        hsv = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
 
         # define range of green color in HSV
-        lower_green = np.array([0,100, 100])
-        upper_green = np.array([200,255,255])
+        # lower_green = np.array([0,100, 100])
+        # upper_green = np.array([200,255,255])
 
+        # Empirical value 6/8-2017 :
+        lower_green = np.array([9, 74, 170])
+        upper_green = np.array([96, 125, 249])
+        
         # Threshold the HSV image to get only green colors
-        mask = cv2.inRange(hsv, lower_green, upper_green)
+        self.mask = cv2.inRange(hsv, lower_green, upper_green)
 
         # Setup SimpleBlobDetector parameters.
         params = cv2.SimpleBlobDetector_Params()
 
         # Change thresholds
-        params.minThreshold = 10
-        params.maxThreshold = 200
+        params.minThreshold = 0
+        params.maxThreshold = 255
+        params.thresholdStep = 50
+        params.minDistBetweenBlobs = 10
 
         # Filter by Area.
         params.filterByArea = True
@@ -104,11 +121,11 @@ class ImageOperations:
         # Create a detector with the parameters
         detector=cv2.SimpleBlobDetector_create(params)
 
-        # blur = cv2.GaussianBlur(mask,(10,10),0)
-        blur = cv2.medianBlur(mask,1)
-
+        # self.blur = cv2.GaussianBlur(mask,(10,10),0)
+        # self.blur = cv2.medianBlur(self.mask, 1)
+        # self.blur = mask.copy()
         # Detect blobs.
-        keypoints = detector.detect(blur)
+        keypoints = detector.detect(self.mask)
 
         return keypoints
 
@@ -119,11 +136,11 @@ class ImageOperations:
     """
         rgb = self.alt_img
         # define range of green color in RGB
-        lower_green = np.array([0,130, 0])
+        lower_green = np.array([0,50, 0])
         upper_green = np.array([150,255,150])
 
-        # Threshold the HSV image to get only green colors
-        mask = cv2.inRange(rgb, lower_green, upper_green)
+        # Threshold the RGB image to get only green colors
+        self.mask = cv2.inRange(rgb, lower_green, upper_green)
 
         # Setup SimpleBlobDetector parameters.
         params = cv2.SimpleBlobDetector_Params()
@@ -155,10 +172,10 @@ class ImageOperations:
         detector=cv2.SimpleBlobDetector_create(params)
 
         # blur = cv2.GaussianBlur(mask,(10,10),0)
-        blur = cv2.medianBlur(mask,1)
+        self.blur = cv2.medianBlur(self.mask,1)
 
         # Detect blobs.
-        keypoints = detector.detect(blur)
+        keypoints = detector.detect(self.blur)
 
         return keypoints
 
@@ -188,8 +205,60 @@ class ImageOperations:
             imgname = "roboimg" + str(int(time.time())) + ".png"
             imgpath = os.path.join(self.imgdir, imgname)
             # print("Pic name " + imgpath)
+
             cv2.imwrite(imgpath, img)
         except:
             self.logger.error("archive_image failed %s" % (imgpath))
-        
+
+    def nothing(self, x):
+        pass
+
+    def gui_choose_hsv(self, img):
+        cv2.namedWindow('result')
+
+        # Starting with 100's to prevent error while masking
+        hl,sl,vl = 100,100,100
+        hh,sh,vh = 179, 255, 255
+
+        # Creating track bar
+        cv2.createTrackbar('hl', 'result',0,179,self.nothing)
+        cv2.createTrackbar('sl', 'result',0,255,self.nothing)
+        cv2.createTrackbar('vl', 'result',0,255,self.nothing)
+        cv2.createTrackbar('hh', 'result',0,179,self.nothing)
+        cv2.createTrackbar('sh', 'result',0,255,self.nothing)
+        cv2.createTrackbar('vh', 'result',0,255,self.nothing)
+
+        cv2.setTrackbarPos('hh','result',hh)
+        cv2.setTrackbarPos('sh','result',sh)
+        cv2.setTrackbarPos('vh','result',vh)
+
+
+        while(1):
+
+            frame = img.copy()
+            #converting to HSV
+            hsv = cv2.cvtColor(frame,cv2.COLOR_BGR2HSV)
+
+            # get info from track bar and appy to result
+            hl = cv2.getTrackbarPos('hl','result')
+            sl = cv2.getTrackbarPos('sl','result')
+            vl = cv2.getTrackbarPos('vl','result')
+
+            hh = cv2.getTrackbarPos('hh','result')
+            sh = cv2.getTrackbarPos('sh','result')
+            vh = cv2.getTrackbarPos('vh','result')
+
+            # Normal masking algorithm
+            lower_green = np.array([hl,sl,vl])
+            upper_green = np.array([hh, sh, vh])
+            # upper_green = np.array([180,255,255])
+
+            mask = cv2.inRange(hsv,lower_green, upper_green)
+
+            result = cv2.bitwise_and(frame,frame,mask = mask)
+
+            cv2.imshow('result',result)
+            k = cv2.waitKey(5) & 0xFF
+            if k == 27:
+                break
         

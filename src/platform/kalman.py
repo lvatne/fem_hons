@@ -19,6 +19,11 @@ class Kalman:
         print(" TESTING: Lat: %s Lon: %s Hdg: %s Vel %s Mode: %s " %
               (lat, lon, hdg, vel, mode))
         print("Time: %s" % (tme))
+        
+    def reset(self):
+        self.gps.stop()
+        time.sleep(1)
+        self.gps.start()
 
     def utm_coord(self):
         lat, lon, hdg, vel, tme, mode = self.gps.get_data()

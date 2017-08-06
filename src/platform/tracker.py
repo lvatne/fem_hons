@@ -909,7 +909,7 @@ class Compass:
         z = self.__convert(data, 5) * self.__scale
         return (x,y,z)
 
-    def heading(self):
+    def heading_rad(self):
         (x, y, z) = self.axes()
         headingRad = math.atan2(y, x)
         headingRad += self.__declination
@@ -921,9 +921,13 @@ class Compass:
         # Check for wrap and compensate
         # elif headingRad > 2 * math.pi:
         #     headingRad -= 2 * math.pi
+        return headingRad
+        
+
+    def heading(self):
 
         # Convert to degrees from radians
-        headingDeg = headingRad * 180 / math.pi
+        headingDeg = self.heading_rad() * 180 / math.pi
         return headingDeg
 
     def degrees(self, headingDeg):

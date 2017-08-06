@@ -56,6 +56,7 @@ class Camera:
         try:
             cap = cv2.VideoCapture(self.cv2_cam_dev1)
             ret, frame = cap.read()
+            
             print("Returned %d" % (ret))
             imgname = "roboimg" + str(int(time.time())) + ".png"
             imgpath = os.path.join(self.imgdir, imgname)
@@ -69,3 +70,4 @@ class Camera:
         finally:
             cap.release()
         # cv2.destroyAllWindows()
+
