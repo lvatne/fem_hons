@@ -14,7 +14,7 @@ class Laser:
     def __init__(self):
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.LASER_IO, GPIO.OUT)
-        GPIO.output(self.LASER_IO, GPIO.HIGH)
+        GPIO.output(self.LASER_IO, GPIO.LOW)
 
     def off(self):
         GPIO.output(self.LASER_IO, GPIO.LOW)
