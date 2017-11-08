@@ -1,0 +1,162 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Python: module motor_sw</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head><body bgcolor="#f0f0f8">
+
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="heading">
+<tr bgcolor="#7799ee">
+<td valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial">&nbsp;<br><big><big><strong>motor_sw</strong></big></big></font></td
+><td align=right valign=bottom
+><font color="#ffffff" face="helvetica, arial"><a href=".">index</a><br><a href="file:/opt/robot/src/platform/motor_sw.py">/opt/robot/src/platform/motor_sw.py</a></font></td></tr></table>
+    <p></p>
+<p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#aa55cc">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Modules</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#aa55cc"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><table width="100%" summary="list"><tr><td width="25%" valign=top><a href="RPi.GPIO.html">RPi.GPIO</a><br>
+<a href="logging.html">logging</a><br>
+</td><td width="25%" valign=top><a href="math.html">math</a><br>
+<a href="os.html">os</a><br>
+</td><td width="25%" valign=top><a href="sysprops.html">sysprops</a><br>
+<a href="time.html">time</a><br>
+</td><td width="25%" valign=top></td></tr></table></td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ee77aa">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Classes</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#ee77aa"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><dl>
+<dt><font face="helvetica, arial"><a href="builtins.html#object">builtins.object</a>
+</font></dt><dd>
+<dl>
+<dt><font face="helvetica, arial"><a href="motor_sw.html#Motor_sw">Motor_sw</a>
+</font></dt></dl>
+</dd>
+</dl>
+ <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ffc8d8">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="Motor_sw">class <strong>Motor_sw</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
+    
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>IO&nbsp;interface&nbsp;to&nbsp;the&nbsp;propulsion&nbsp;motor(s)<br>
+Note&nbsp;that&nbsp;we&nbsp;use&nbsp;the&nbsp;BCM&nbsp;scheme&nbsp;for&nbsp;pin&nbsp;numbering.<br>
+This&nbsp;due&nbsp;to&nbsp;BCM&nbsp;being&nbsp;a&nbsp;requirement&nbsp;of&nbsp;the&nbsp;RPIO&nbsp;module&nbsp;as&nbsp;per&nbsp;12/9-2016<br>
+&nbsp;<br>
+The&nbsp;following&nbsp;need&nbsp;calibration:<br>
+TURN_FACTOR<br>
+NEUTRAL_TURN_FACTOR<br>
+..and&nbsp;possibly&nbsp;also&nbsp;the&nbsp;speed&nbsp;values&nbsp;used&nbsp;in&nbsp;the&nbsp;'turn..'&nbsp;methods.<br>
+&nbsp;<br>
+Attributes:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;None.<br>
+&nbsp;<br>
+Implemented&nbsp;as&nbsp;a&nbsp;state&nbsp;machine&nbsp;with&nbsp;the&nbsp;states:<br>
+*&nbsp;Stopped&nbsp;=&nbsp;0<br>
+*&nbsp;Turning_Right&nbsp;=&nbsp;1<br>
+*&nbsp;Turning_Left&nbsp;=&nbsp;2<br>
+*&nbsp;Running_Fwd&nbsp;=&nbsp;3<br>
+*&nbsp;Running_Rev&nbsp;=&nbsp;4<br>
+*&nbsp;Error_State&nbsp;=&nbsp;5<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="Motor_sw-__init__"><strong>__init__</strong></a>(self)</dt></dl>
+
+<dl><dt><a name="Motor_sw-calc_fwd_lr_power"><strong>calc_fwd_lr_power</strong></a>(self, pwr)</dt></dl>
+
+<dl><dt><a name="Motor_sw-calc_power"><strong>calc_power</strong></a>(self, main_power, diff_pwr)</dt><dd><tt>Calculate&nbsp;the&nbsp;high-&nbsp;and&nbsp;low&nbsp;power&nbsp;settings&nbsp;when&nbsp;steering<br>
+Keyword&nbsp;arguments:<br>
+main_power:&nbsp;The&nbsp;overall&nbsp;power&nbsp;(i.e.&nbsp;the&nbsp;speed)&nbsp;of&nbsp;the&nbsp;robot<br>
+diff_power:&nbsp;The&nbsp;turning&nbsp;rate&nbsp;of&nbsp;the&nbsp;robot.</tt></dd></dl>
+
+<dl><dt><a name="Motor_sw-force_stop"><strong>force_stop</strong></a>(self)</dt><dd><tt>To&nbsp;be&nbsp;used&nbsp;to&nbsp;come&nbsp;out&nbsp;of&nbsp;an&nbsp;unknown&nbsp;state&nbsp;when&nbsp;debugging</tt></dd></dl>
+
+<dl><dt><a name="Motor_sw-run_fwd"><strong>run_fwd</strong></a>(self, pwr)</dt><dd><tt>Part&nbsp;of&nbsp;the&nbsp;state&nbsp;machine.&nbsp;Invoked&nbsp;on&nbsp;receiving<br>
+the&nbsp;RUN_FWD&nbsp;signal<br>
+&nbsp;<br>
+Keyword&nbsp;arguments:<br>
+pwr:&nbsp;the&nbsp;speed&nbsp;in&nbsp;percent&nbsp;(0-100)</tt></dd></dl>
+
+<dl><dt><a name="Motor_sw-run_rev"><strong>run_rev</strong></a>(self, pwr)</dt><dd><tt>Part&nbsp;of&nbsp;the&nbsp;state&nbsp;machine.&nbsp;Invoked&nbsp;on&nbsp;receiving<br>
+the&nbsp;RUN_REV&nbsp;signal<br>
+&nbsp;<br>
+Keyword&nbsp;arguments:<br>
+pwr:&nbsp;The&nbsp;speed&nbsp;of&nbsp;the&nbsp;robot&nbsp;in&nbsp;percent&nbsp;(0-100)</tt></dd></dl>
+
+<dl><dt><a name="Motor_sw-signal"><strong>signal</strong></a>(self, sign, pwr)</dt><dd><tt>#&nbsp;Entry&nbsp;point&nbsp;for&nbsp;the&nbsp;motor&nbsp;state&nbsp;machine</tt></dd></dl>
+
+<dl><dt><a name="Motor_sw-steer_left"><strong>steer_left</strong></a>(self, pwr)</dt><dd><tt>Part&nbsp;of&nbsp;the&nbsp;state&nbsp;machine.&nbsp;Invoked&nbsp;on&nbsp;receiving<br>
+the&nbsp;STEER_LEFT&nbsp;signal<br>
+&nbsp;<br>
+Keyword&nbsp;arguments:<br>
+pwr:&nbsp;the&nbsp;difference&nbsp;between&nbsp;right&nbsp;and&nbsp;left&nbsp;wheel&nbsp;power</tt></dd></dl>
+
+<dl><dt><a name="Motor_sw-steer_right"><strong>steer_right</strong></a>(self, pwr)</dt><dd><tt>Part&nbsp;of&nbsp;the&nbsp;state&nbsp;machine.&nbsp;Invoked&nbsp;on&nbsp;receiving<br>
+the&nbsp;STEER_RIGHT&nbsp;signal<br>
+&nbsp;<br>
+Keyword&nbsp;arguments:<br>
+pwr:&nbsp;the&nbsp;difference&nbsp;between&nbsp;left&nbsp;and&nbsp;right&nbsp;wheel&nbsp;power</tt></dd></dl>
+
+<dl><dt><a name="Motor_sw-stop"><strong>stop</strong></a>(self)</dt><dd><tt>Part&nbsp;of&nbsp;the&nbsp;state&nbsp;machine.<br>
+Invoked&nbsp;on&nbsp;receiving&nbsp;the&nbsp;STOP&nbsp;signal</tt></dd></dl>
+
+<dl><dt><a name="Motor_sw-turn_left"><strong>turn_left</strong></a>(self, pwr)</dt><dd><tt>Part&nbsp;of&nbsp;the&nbsp;state&nbsp;machine.&nbsp;Invoked&nbsp;on&nbsp;receiving<br>
+the&nbsp;TURN_LEFT&nbsp;signal</tt></dd></dl>
+
+<dl><dt><a name="Motor_sw-turn_right"><strong>turn_right</strong></a>(self, pwr)</dt><dd><tt>Part&nbsp;of&nbsp;the&nbsp;state&nbsp;machine.&nbsp;Invoked&nbsp;on&nbsp;receiving&nbsp;the<br>
+TURN_RIGHT&nbsp;signal</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>__dict__</strong></dt>
+<dd><tt>dictionary&nbsp;for&nbsp;instance&nbsp;variables&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+<dl><dt><strong>__weakref__</strong></dt>
+<dd><tt>list&nbsp;of&nbsp;weak&nbsp;references&nbsp;to&nbsp;the&nbsp;object&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>Error_State</strong> = 5</dl>
+
+<dl><dt><strong>NEUTRAL_TURN_FACTOR</strong> = 35.1</dl>
+
+<dl><dt><strong>ROLL_UP_TIME</strong> = 0.05</dl>
+
+<dl><dt><strong>RUN_FWD</strong> = 15</dl>
+
+<dl><dt><strong>RUN_REV</strong> = 16</dl>
+
+<dl><dt><strong>Running_Fwd</strong> = 3</dl>
+
+<dl><dt><strong>Running_Rev</strong> = 4</dl>
+
+<dl><dt><strong>STEER_LEFT</strong> = 14</dl>
+
+<dl><dt><strong>STEER_RIGHT</strong> = 13</dl>
+
+<dl><dt><strong>STOP</strong> = 10</dl>
+
+<dl><dt><strong>Stopped</strong> = 0</dl>
+
+<dl><dt><strong>TURN_FACTOR</strong> = 70.2</dl>
+
+<dl><dt><strong>TURN_LEFT</strong> = 12</dl>
+
+<dl><dt><strong>TURN_RIGHT</strong> = 11</dl>
+
+<dl><dt><strong>Turning_Left</strong> = 2</dl>
+
+<dl><dt><strong>Turning_Right</strong> = 1</dl>
+
+<dl><dt><strong>signal_names</strong> = [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', 'STOP', 'TURN_RIGHT', 'TURN_LEFT', 'STEER_RIGHT', 'STEER_LEFT', 'RUN_FWD', 'RUN_REV']</dl>
+
+<dl><dt><strong>state_names</strong> = ['Stopped = 0', 'Turning_Right = 1', 'Turning_Left = 2', 'Running_Fwd = 3', 'Running_Rev = 4', 'Error_State = 5']</dl>
+
+</td></tr></table></td></tr></table>
+</body></html>

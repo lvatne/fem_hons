@@ -1,0 +1,161 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Python: module gps3</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head><body bgcolor="#f0f0f8">
+
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="heading">
+<tr bgcolor="#7799ee">
+<td valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial">&nbsp;<br><big><big><strong>gps3</strong></big></big> (version 0.33.2)</font></td
+><td align=right valign=bottom
+><font color="#ffffff" face="helvetica, arial"><a href=".">index</a><br><a href="file:/opt/robot/src/platform/gps3.py">/opt/robot/src/platform/gps3.py</a></font></td></tr></table>
+    <p><tt>GPS3&nbsp;(gps3.py)&nbsp;is&nbsp;a&nbsp;Python&nbsp;2.7-3.5&nbsp;GPSD&nbsp;interface&nbsp;(<a href="http://www.catb.org/gpsd">http://www.catb.org/gpsd</a>)<br>
+Default&nbsp;host='127.0.0.1',&nbsp;port=2947,&nbsp;gpsd_protocol='json'&nbsp;in&nbsp;two&nbsp;classes.<br>
+1)&nbsp;'<a href="#GPSDSocket">GPSDSocket</a>'&nbsp;creates&nbsp;a&nbsp;GPSD&nbsp;socket&nbsp;connection&nbsp;&amp;&nbsp;request/retrieve&nbsp;GPSD&nbsp;output.<br>
+2)&nbsp;'<a href="#DataStream">DataStream</a>'&nbsp;Streamed&nbsp;gpsd&nbsp;JSON&nbsp;data&nbsp;literates&nbsp;it&nbsp;into&nbsp;python&nbsp;dictionaries.<br>
+Import&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;from&nbsp;gps3&nbsp;import&nbsp;gps3<br>
+Instantiate&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gpsd_socket&nbsp;=&nbsp;gps3.<a href="#GPSDSocket">GPSDSocket</a>()<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;data_stream&nbsp;=&nbsp;gps3.<a href="#DataStream">DataStream</a>()<br>
+Run&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gpsd_socket.connect()<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gpsd_socket.watch()<br>
+Iterate&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;new_data&nbsp;in&nbsp;gpsd_socket:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if&nbsp;new_data:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;data_stream.unpack(new_data)<br>
+Use&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;print('Altitude&nbsp;=&nbsp;',data_stream.TPV['alt'])<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;print('Latitude&nbsp;=&nbsp;',data_stream.TPV['lat'])<br>
+Consult&nbsp;Lines&nbsp;144-ff&nbsp;for&nbsp;Attribute/Key&nbsp;possibilities.<br>
+or&nbsp;<a href="http://www.catb.org/gpsd/gpsd_json.html">http://www.catb.org/gpsd/gpsd_json.html</a><br>
+Run&nbsp;human.py;&nbsp;python[X]&nbsp;human.py&nbsp;[arguments]&nbsp;for&nbsp;a&nbsp;human&nbsp;experience.</tt></p>
+<p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#aa55cc">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Modules</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#aa55cc"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><table width="100%" summary="list"><tr><td width="25%" valign=top><a href="json.html">json</a><br>
+</td><td width="25%" valign=top><a href="select.html">select</a><br>
+</td><td width="25%" valign=top><a href="socket.html">socket</a><br>
+</td><td width="25%" valign=top><a href="sys.html">sys</a><br>
+</td></tr></table></td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ee77aa">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Classes</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#ee77aa"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><dl>
+<dt><font face="helvetica, arial"><a href="builtins.html#object">builtins.object</a>
+</font></dt><dd>
+<dl>
+<dt><font face="helvetica, arial"><a href="gps3.html#DataStream">DataStream</a>
+</font></dt><dt><font face="helvetica, arial"><a href="gps3.html#GPSDSocket">GPSDSocket</a>
+</font></dt></dl>
+</dd>
+</dl>
+ <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ffc8d8">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="DataStream">class <strong>DataStream</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
+    
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Retrieve&nbsp;JSON&nbsp;Object(s)&nbsp;from&nbsp;<a href="#GPSDSocket">GPSDSocket</a>&nbsp;and&nbsp;unpack&nbsp;it&nbsp;into&nbsp;respective<br>
+gpsd&nbsp;'class'&nbsp;dictionaries,&nbsp;TPV,&nbsp;SKY,&nbsp;etc.&nbsp;yielding&nbsp;hours&nbsp;of&nbsp;fun&nbsp;and&nbsp;entertainment.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="DataStream-__init__"><strong>__init__</strong></a>(self)</dt><dd><tt>Potential&nbsp;data&nbsp;packages&nbsp;from&nbsp;gpsd&nbsp;for&nbsp;a&nbsp;generator&nbsp;of&nbsp;class&nbsp;attribute&nbsp;dictionaries</tt></dd></dl>
+
+<dl><dt><a name="DataStream-unpack"><strong>unpack</strong></a>(self, gpsd_socket_response)</dt><dd><tt>Sets&nbsp;new&nbsp;socket&nbsp;data&nbsp;as&nbsp;<a href="#DataStream">DataStream</a>&nbsp;attributes&nbsp;in&nbsp;those&nbsp;initialised&nbsp;dictionaries<br>
+Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;gpsd_socket_response&nbsp;(json&nbsp;<a href="builtins.html#object">object</a>):<br>
+Provides:<br>
+self&nbsp;attribute&nbsp;dictionaries,&nbsp;e.g.,&nbsp;self.<strong>TPV</strong>['lat'],&nbsp;self.<strong>SKY</strong>['gdop']<br>
+Raises:<br>
+AttributeError:&nbsp;'str'&nbsp;<a href="builtins.html#object">object</a>&nbsp;has&nbsp;no&nbsp;attribute&nbsp;'keys'&nbsp;when&nbsp;the&nbsp;device&nbsp;falls&nbsp;out&nbsp;of&nbsp;the&nbsp;system<br>
+ValueError,&nbsp;KeyError:&nbsp;most&nbsp;likely&nbsp;extra,&nbsp;or&nbsp;mangled&nbsp;JSON&nbsp;data,&nbsp;should&nbsp;not&nbsp;happen,&nbsp;but&nbsp;that<br>
+applies&nbsp;to&nbsp;a&nbsp;lot&nbsp;of&nbsp;things.</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>__dict__</strong></dt>
+<dd><tt>dictionary&nbsp;for&nbsp;instance&nbsp;variables&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+<dl><dt><strong>__weakref__</strong></dt>
+<dd><tt>list&nbsp;of&nbsp;weak&nbsp;references&nbsp;to&nbsp;the&nbsp;object&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>packages</strong> = {'ATT': set(['acc_len', 'acc_x', 'acc_y', 'acc_z', 'depth', 'device', ...]), 'DEVICE': set(['activated', 'bps', 'cycle', 'driver', 'flags', 'mincycle', ...]), 'DEVICES': set(['devices', 'remote']), 'ERROR': set(['message']), 'GST': set(['alt', 'device', 'lat', 'lon', 'major', 'minor', ...]), 'PPS': set(['clock_nsec', 'clock_sec', 'device', 'precision', 'real_nsec', 'real_sec']), 'SKY': set(['gdop', 'hdop', 'pdop', 'satellites', 'tdop', 'vdop', ...]), 'TOFF': set(['clock_nsec', 'clock_sec', 'device', 'real_nsec', 'real_sec']), 'TPV': set(['alt', 'climb', 'device', 'epc', 'epd', 'eps', ...]), 'VERSION': set(['proto_major', 'proto_minor', 'release', 'remote', 'rev'])}</dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ffc8d8">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="GPSDSocket">class <strong>GPSDSocket</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
+    
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Establish&nbsp;a&nbsp;socket&nbsp;with&nbsp;gpsd,&nbsp;by&nbsp;which&nbsp;to&nbsp;send&nbsp;commands&nbsp;and&nbsp;receive&nbsp;data.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="GPSDSocket-__init__"><strong>__init__</strong></a>(self)</dt></dl>
+
+<dl><dt><a name="GPSDSocket-__iter__"><strong>__iter__</strong></a>(self)</dt><dd><tt>banana</tt></dd></dl>
+
+<dl><dt><a name="GPSDSocket-__next__"><strong>__next__</strong></a> = <a href="#GPSDSocket-next">next</a>(self, timeout=0)</dt></dl>
+
+<dl><dt><a name="GPSDSocket-close"><strong>close</strong></a>(self)</dt><dd><tt>turn&nbsp;off&nbsp;stream&nbsp;and&nbsp;close&nbsp;socket</tt></dd></dl>
+
+<dl><dt><a name="GPSDSocket-connect"><strong>connect</strong></a>(self, host='127.0.0.1', port=2947)</dt><dd><tt>Connect&nbsp;to&nbsp;a&nbsp;host&nbsp;on&nbsp;a&nbsp;given&nbsp;port.<br>
+Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;host:&nbsp;default&nbsp;host='127.0.0.1'<br>
+&nbsp;&nbsp;&nbsp;&nbsp;port:&nbsp;default&nbsp;port=2947</tt></dd></dl>
+
+<dl><dt><a name="GPSDSocket-next"><strong>next</strong></a>(self, timeout=0)</dt><dd><tt>Return&nbsp;empty&nbsp;unless&nbsp;new&nbsp;data&nbsp;is&nbsp;ready&nbsp;for&nbsp;the&nbsp;client.<br>
+Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;timeout:&nbsp;Default&nbsp;timeout=0&nbsp;&nbsp;range&nbsp;zero&nbsp;to&nbsp;float&nbsp;specifies&nbsp;a&nbsp;time-out&nbsp;as&nbsp;a&nbsp;floating&nbsp;point<br>
+number&nbsp;in&nbsp;seconds.&nbsp;&nbsp;Will&nbsp;sit&nbsp;and&nbsp;wait&nbsp;for&nbsp;timeout&nbsp;seconds.&nbsp;&nbsp;When&nbsp;the&nbsp;timeout&nbsp;argument&nbsp;is&nbsp;omitted<br>
+the&nbsp;function&nbsp;blocks&nbsp;until&nbsp;at&nbsp;least&nbsp;one&nbsp;file&nbsp;descriptor&nbsp;is&nbsp;ready.&nbsp;A&nbsp;time-out&nbsp;value&nbsp;of&nbsp;zero&nbsp;specifies<br>
+a&nbsp;poll&nbsp;and&nbsp;never&nbsp;blocks.</tt></dd></dl>
+
+<dl><dt><a name="GPSDSocket-send"><strong>send</strong></a>(self, command)</dt><dd><tt>Ship&nbsp;commands&nbsp;to&nbsp;the&nbsp;daemon<br>
+Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;command:&nbsp;e.g.,&nbsp;'?WATCH={{'enable':true,'json':true}}'|'?VERSION;'|'?DEVICES;'|'?DEVICE;'|'?POLL;'</tt></dd></dl>
+
+<dl><dt><a name="GPSDSocket-watch"><strong>watch</strong></a>(self, enable=True, gpsd_protocol='json', devicepath=None)</dt><dd><tt>watch&nbsp;gpsd&nbsp;in&nbsp;various&nbsp;gpsd_protocols&nbsp;or&nbsp;devices.<br>
+Arguments:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;enable:&nbsp;(bool)&nbsp;stream&nbsp;data&nbsp;to&nbsp;socket<br>
+&nbsp;&nbsp;&nbsp;&nbsp;gpsd_protocol:&nbsp;(str)&nbsp;'json'&nbsp;|&nbsp;'nmea'&nbsp;|&nbsp;'rare'&nbsp;|&nbsp;'raw'&nbsp;|&nbsp;'scaled'&nbsp;|&nbsp;'split24'&nbsp;|&nbsp;'pps'<br>
+&nbsp;&nbsp;&nbsp;&nbsp;devicepath:&nbsp;(str)&nbsp;device&nbsp;path&nbsp;-&nbsp;'/dev/ttyUSBn'&nbsp;for&nbsp;some&nbsp;number&nbsp;n&nbsp;or&nbsp;'/dev/whatever_works'<br>
+Returns:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;command:&nbsp;(str)&nbsp;e.g.,&nbsp;'?WATCH={"enable":true,"json":true};'</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>__dict__</strong></dt>
+<dd><tt>dictionary&nbsp;for&nbsp;instance&nbsp;variables&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+<dl><dt><strong>__weakref__</strong></dt>
+<dd><tt>list&nbsp;of&nbsp;weak&nbsp;references&nbsp;to&nbsp;the&nbsp;object&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+</td></tr></table></td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#55aa55">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Data</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#55aa55"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><strong>GPSD_PORT</strong> = 2947<br>
+<strong>HOST</strong> = '127.0.0.1'<br>
+<strong>PROTOCOL</strong> = 'json'<br>
+<strong>__copyright__</strong> = 'Copyright 2015-2016  Moe'<br>
+<strong>__license__</strong> = 'MIT'<br>
+<strong>print_function</strong> = _Feature((2, 6, 0, 'alpha', 2), (3, 0, 0, 'alpha', 0), 65536)</td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#7799ee">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Author</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#7799ee"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%">Moe</td></tr></table>
+</body></html>
