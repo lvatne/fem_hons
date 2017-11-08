@@ -19,7 +19,16 @@ class Motor_sw:
     
     Attributes:
         None.
+
+    Implemented as a state machine with the states:
+    * Stopped = 0
+    * Turning_Right = 1
+    * Turning_Left = 2
+    * Running_Fwd = 3
+    * Running_Rev = 4
+    * Error_State = 5
     """
+    
     TURN_FACTOR = 70.2
     NEUTRAL_TURN_FACTOR = 35.1
     ROLL_UP_TIME = 0.05
@@ -126,8 +135,8 @@ class Motor_sw:
         else:
             self.logger.error("ERROR: Motor state machine error. Received unknown signal %d" % (sign))
 
-    # To be used to come out of an unknown state when debugging
     def force_stop(self):
+        """ To be used to come out of an unknown state when debugging """
         self.lf_servo.stop()
         self.rr_servo.stop()
         self.rf_servo.stop()
@@ -139,8 +148,11 @@ class Motor_sw:
         self.logger.warning('Motor Force Stopped')
         
     
-    # Part of the state machine. Invoked on receiving the STOP signal
     def stop(self):
+        """ Part of the state machine.
+            Invoked on receiving the STOP signal
+        """
+        
         self.logger.info('stopping from state ' + self.state_names[self.state])
         if self.state == self.Stopped:
             new_state = self.Stopped
@@ -173,8 +185,12 @@ class Motor_sw:
         self.lPower = 0.0
         self.logger.info('..stopped')
 
-    # Part of the state machine. Invoked on receiving the TURN_RIGHT signal
     def turn_right(self, pwr):
+        """
+            Part of the state machine. Invoked on receiving the
+            TURN_RIGHT signal
+        """
+
         self.logger.info('Motor.turn_right(%d).in state %s..' % (pwr, self.state_names[self.state]))
         if self.state == self.Stopped:
             self.lf_servo.start(pwr)
@@ -213,8 +229,12 @@ class Motor_sw:
         self.power = pwr
         self.logger.info('..turned_right. New state %s', (self.state_names[self.state]))
 
-    # Part of the state machine. Invoked on receiving the TURN_LEFT signal
     def turn_left(self, pwr):
+        """
+            Part of the state machine. Invoked on receiving
+            the TURN_LEFT signal
+        """
+
         self.logger.info('Motor.turn_left(%d)..in state %s' % (pwr, self.state_names[self.state]))
         if self.state == self.Stopped:
             self.rf_servo.start(pwr)
@@ -253,9 +273,15 @@ class Motor_sw:
         self.power = pwr
         self.logger.info('..turned_left')
 
-    # Part of the state machine. Invoked on receiving the STEER_RIGHT signal
-    # pwr is the difference between left and right wheel power
     def steer_right(self, pwr):
+        """
+            Part of the state machine. Invoked on receiving
+            the STEER_RIGHT signal
+
+            Keyword arguments:
+            pwr: the difference between left and right wheel power
+        """
+
         self.logger.info('Motor.steer_right(%d) at power %3.3f in state %s..' % (pwr, self.power, self.state_names[self.state]))
         hiPwr, loPwr = self.calc_power(self.power, pwr)
         if self.state == self.Stopped:
@@ -296,9 +322,15 @@ class Motor_sw:
         self.power = pwr
         self.logger.info('..steered_right')
 
-    # Part of the state machine. Invoked on receiving the STEER_LEFT signal
-    # pwr is the difference between right and left wheel power
     def steer_left(self, pwr):
+        """
+            Part of the state machine. Invoked on receiving
+            the STEER_LEFT signal
+
+            Keyword arguments:
+            pwr: the difference between right and left wheel power
+        """
+        
         self.logger.info('Motor.steer_left(%d) at power %3.3f in state %s' % (pwr, self.power, self.state_names[self.state]))
         hiPwr, loPwr = self.calc_power(self.power, pwr)
         if self.state == self.Stopped:
@@ -339,8 +371,14 @@ class Motor_sw:
         self.power = pwr
         self.logger.info('..steered_left')
 
-    # Calculate the high- and low power settings when steering
     def calc_power(self, main_power, diff_pwr):
+        """
+            Calculate the high- and low power settings when steering
+            Keyword arguments:
+            main_power: The overall power (i.e. the speed) of the robot
+            diff_power: The turning rate of the robot.
+        """
+
         half_pwr = diff_pwr / 2.0
         hiPower = main_power + half_pwr
         loPower = main_power - half_pwr
@@ -357,8 +395,15 @@ class Motor_sw:
         # print("calc_power. main: %3.3f diff %3.3f hi %3.3f lo %3.3f" % (main_power, diff_pwr, hiPower, loPower))
         return hiPower, loPower
 
-    # Part of the state machine. Invoked on receiving the RUN_FWD signal
     def run_fwd(self, pwr):
+        """
+            Part of the state machine. Invoked on receiving
+            the RUN_FWD signal
+            
+            Keyword arguments:
+            pwr: the speed in percent (0-100)           
+        """
+
         self.logger.info('Motor.run_fwd(%d).in state %s..' % (pwr, self.state_names[self.state]))
         if self.state == self.Stopped:
             self.lf_servo.start(pwr)
@@ -417,8 +462,15 @@ class Motor_sw:
         return left, right
             
 
-    # Part of the state machine. Invoked on receiving the RUN_REV signal
     def run_rev(self, pwr):
+        """
+            Part of the state machine. Invoked on receiving
+            the RUN_REV signal
+
+            Keyword arguments:
+            pwr: The speed of the robot in percent (0-100)
+        """
+
         self.logger.info('Motor.run_rev(%d).from state %s..' % (pwr, self.state_names[self.state]))
         if self.state == self.Stopped:
             self.lr_servo.start(pwr)

@@ -20,7 +20,7 @@ class Tracker:
     """
     def __init__(self):
         self.BUFSZ = 5
-        # Accessors for the inertial_data cells
+        # Accessors for the inertial_data cells. Refers to the index of the inertial_data array
         self.tstamp  = 0
         self.acc_x   = 1
         self.acc_y   = 2
@@ -416,6 +416,8 @@ class Tracker:
          
 
     def set_heading(self, hdg):
+        """ Rotate the robot to the given ablolute heading
+        """
         if hdg > 180:
             tmp = hdg - 180
             hdg = -180 + tmp
@@ -427,6 +429,8 @@ class Tracker:
         return self.turn(turn_angle, hdg)
 
     def diffheading(self, hdg, old_hdg):
+        """ Calculate how many degrees are left to rotate
+        """
         turn_angle = hdg - old_hdg
         if turn_angle > 180:
             turn_angle = -1 *(360 - turn_angle)
@@ -565,7 +569,7 @@ class Tracker:
         Calculate the maximum number of samples required to achieve goal
         Assume an average speed of 0.25 m/s
         """
-        avg_speed = 0.25  # m/s
+        avg_speed = 0.25  # m/s. Perhaps make this a property in sysprops?
         if meters < 0.0:
             meters = 0.0 - meters
         num_sec = meters / avg_speed
@@ -617,6 +621,9 @@ class Gyro:
         self.bus.write_byte_data(self.address, 0x16, 0x18)
 
     def self_test(self):
+        """ Check return value from the specified address to veify that it is actually
+            a ITG3205 chip at that address
+        """
         value = self.bus.read_byte_data(self.address, 0)
         print("Gyro self test %4X" % (value))
         if value == 0x68:
@@ -657,6 +664,10 @@ class Gyro:
 
 
 class Accelerometer:
+    """ Interface to the ADXL345 accelerometer chip on the 9-degrees of freedom
+    Subassembly (GY-85).
+
+    """
     EARTH_GRAVITY_MS2   = 9.80665
     SCALE_MULTIPLIER    = 0.004
 
@@ -764,16 +775,16 @@ class Accelerometer:
 
 class Compass:
 
-    # vim: set fileencoding=UTF-8 :
+    """ HMC5888L Magnetometer (Digital Compass) wrapper class.
+        The chip is located on the GY-85 subassembly and is accessed using S2C 
+        Based on https://bitbucket.org/thinkbowl/i2clibraries/src/14683feb0f96,
+        but uses smbus rather than quick2wire and sets some different init
+        params.
 
-    # HMC5888L Magnetometer (Digital Compass) wrapper class
-    # Based on https://bitbucket.org/thinkbowl/i2clibraries/src/14683feb0f96,
-    # but uses smbus rather than quick2wire and sets some different init
-    # params.
+        originally class hmc5883l:
 
-    # originally class hmc5883l:
-
-    # Norway: gauss = 0.507, declination = 0.88 deg
+        Norway: gauss = 0.507, declination = 0.88 deg
+    """
 
     __scales = {
         0.88: [0, 0.73],

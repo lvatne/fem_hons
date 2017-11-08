@@ -5,7 +5,10 @@ import logging
 
 
 class Motor:
-    """ IO interface to the propulsion motor(s)
+    """
+    **NOT IN USE IN VERSION 1.0**
+    
+    IO interface to the propulsion motor(s)
     Note that we use the BCM scheme for pin numbering.
     This due to BCM being a requirement of the RPIO module as per 12/9-2016
 
@@ -46,6 +49,14 @@ class Motor:
 
 
     def calc_subcycle(self, pct):
+        """
+            Keyword arguments:
+            pct: percentage power 0 - 100.
+
+            Effective range is 20 - 95. If more than 95, we set full power.
+            If less than 20 we set engine stop.
+        """
+        
         if pct >= 95:
             subcycle_time = 20000
         elif pct <= 20:
@@ -102,6 +113,14 @@ class Motor:
      # High level methods
      
     def forward(self, speed, sec) :
+         """
+             Go forward with specified speed for the specified number
+             of seconds.
+             Keyword arguments:
+             speed: Percentage power (0-100)
+             sec: number of seconds to run
+         """
+        
          self.logger.info("forward({}, {})".format(speed, sec))
          self.left_fwd(speed)
          self.right_fwd(speed)
@@ -110,6 +129,14 @@ class Motor:
          self.logger,info("forward() done")
 
     def reverse(self, speed, sec) :
+         """
+             Go backwards with specified speed for the specified number
+             of seconds.
+             Keyword arguments:
+             speed: Percentage power (0-100)
+             sec: number of seconds to run
+         """
+        
         self.logger.info("reverse({}, {})",format(speed, sec))
         self.right_rev(speed)
         self.left_rev(speed)

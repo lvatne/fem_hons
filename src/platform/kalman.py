@@ -9,7 +9,11 @@ import threading
 import time
 
 class Kalman:
-
+    """
+        A wrapper class for the GPS (so far) that returns a valid UTM
+        coordinate without waiting or blocking
+    """
+    
     def __init__(self):
         self.gps = GPSrunner(1)
         self.gps.start()
@@ -26,6 +30,11 @@ class Kalman:
         self.gps.start()
 
     def utm_coord(self):
+        """
+            Returns UTM North, UTM East, UTM Zone and UTM Zone again
+            If no GPS fix is available, return -998.0  -998.0 " " " "
+        """
+        
         lat, lon, hdg, vel, tme, mode = self.gps.get_data()
         if isinstance(lat, float) and isinstance(lon, float):
             u = utm.from_latlon(float(lat), float(lon))
@@ -34,6 +43,8 @@ class Kalman:
             return (-998.0, -998.0, " ", " ")
 
     def dump_buf(self, filename):
+        """ Function for debugging """
+        
         i = self.gps.buf_idx
         j = 0
         dump_buf = np.zeros((self.gps.BUFSZ, 5), dtype=float)
@@ -55,6 +66,13 @@ class Kalman:
         # self.gps.join()
 
 class GPSrunner (threading.Thread):
+    """
+        Separate thread reading continously from the gpsd daemon
+        (operating system daemon). Maintaining a UTM coordinate ready
+        to be used at all times
+
+        ToDo: Establish a LED on a GPIO port to show when GPS fix is available
+    """
 
     def __init__(self, threadID):
         self.BUFSZ = 100
