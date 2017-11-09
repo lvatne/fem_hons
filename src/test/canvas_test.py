@@ -2,8 +2,8 @@
 
 import numpy as np
 import geofence
-import tracker
-import motor_sw
+#import tracker
+#import motor_sw
 import time
 from tkinter import *
 
@@ -46,12 +46,43 @@ for i in range(n-1):
 # w.create_line(150,20, 200, 0, fill="#476042", width=3)
 # w.create_line(150, 80, 200, 100, fill="#476042", width=3)
 
+# m = motor_sw.Motor_sw()
+# c = tracker.Compass(gauss = 0.88, declination = (0, 52))
+# c.self_test()
 
+# a = tracker.Accelerometer()
+
+try:
+    print( a.getAxes(True) )
+    #print("X: %4d Y: %4d Z: %4d" % (x, y, z))
+    for i in range(5):
+        (x, y, z) = a.getAxes(True)
+        print("X: %4f Y: %4f Z: %4f" % (x, y, z))
+        time.sleep(0.1)
+    m.left_fwd(50)
+    m.right_fwd(50)
+    for i in range(5):
+        (x, y, z) = a.getAxes(True)
+        print("X: %4f Y: %4f Z: %4f" % (x, y, z))
+        time.sleep(0.1)
+    m.stop()
+    m.right_rev(100)
+    m.left_rev(100)
+    for i in range(5):
+        (x, y, z) = a.getAxes(True)
+        print("X: %4f Y: %4f Z: %4f" % (x, y, z))
+        time.sleep(0.1)
+    m.stop()
+    for i in range(5):
+        (x, y, z) = a.getAxes(True)
+        print("X: %4f Y: %4f Z: %4f" % (x, y, z))
+        time.sleep(0.5)
+    exit()
+except:
+    m.stop()
+    raise
 
 t = tracker.Tracker()
-m = t.m
-c = t.c
-c.self_test()
 
 t.set_heading(70)
 print(t.c.local_heading_deg())
