@@ -48,10 +48,11 @@ class SysProps:
         self.y_offset = float(self.props['y_offset'])
         self.xy_ratio = float(self.props['xy_ratio'])
         self.motor_min_power = float(self.props['motor_min_power'])
-        self.cam_device1=self.props['cam_device1']
+        # self.cam_device1=self.props['cam_device1']
         self.cam_width1=int(self.props['cam_width1'])
         self.cam_height1=int(self.props['cam_height1'])
         self.cv2_cam_device1=int(self.props['cv2_cam_device1'])
+        self.cv2_cam_device2=int(self.props['cv2_cam_device2'])
         self.left_forward=int(self.props['left_forward'])
         self.left_reverse=int(self.props['left_reverse'])
         self.right_forward=int(self.props['right_forward'])
@@ -61,6 +62,7 @@ class SysProps:
             self.collect_PID_data = False
         else:
             self.collect_PID_data = True
+        self.light_wakeup_t=float(self.props['light_wakeup_t'])
         
 
     def set(self, key, value):

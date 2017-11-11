@@ -4,6 +4,7 @@ import numpy as np
 import geofence
 import tracker
 import motor_sw
+import camera
 import lights
 import time
 import sys
@@ -12,27 +13,46 @@ import sys
 try:
     l = lights.Lights()
     t = tracker.Tracker()
+    cam = camera.Camera()
+    c = t.c
+
     l.headlights(True)
+    time.sleep(0.2)
+    l.headlights(False)
     
+    cam.take_picture()
+    cam.take_nav_picture()
+    print("Heading %f" % (c.heading()))
+
     t.move_dist(0.5)
     time.sleep(1)
     t.turn_relative(90)
     time.sleep(0.5)
+    print("Heading %f" % (c.heading()))
     
+    cam.take_picture()
+    cam.take_nav_picture()
     t.move_dist(0.5)
     time.sleep(1)
     t.turn_relative(90)
     time.sleep(0.5)
+    print("Heading %f" % (c.heading()))
     
+    cam.take_picture()
+    cam.take_nav_picture()
     t.move_dist(0.5)
     time.sleep(1)
     t.turn_relative(90)
     time.sleep(0.5)
+    print("Heading %f" % (c.heading()))
     
+    cam.take_picture()
+    cam.take_nav_picture()
     t.move_dist(0.5)
     time.sleep(1)
     t.turn_relative(90)
     time.sleep(0.5)
+    print("Heading %f" % (c.heading()))
     
     l.headlights(False)
     exit()

@@ -46,14 +46,15 @@ class ImageOperations:
 
     def correct_foreshortening(self, degrees):
         """
-    Correct foreshortening; like a top-hinged window swinging away
-    from the observer
-    Keyword arguments:
-    img -- the image to be corrected
-    degrees -- number of degrees to swing the image. 0 to 90 degrees
-    width -- width of the original- and resulting image
-    height -- height of the original- and resulting image
-    """
+        Correct foreshortening; like a top-hinged window swinging away
+        from the observer
+        Keyword arguments:
+        img -- the image to be corrected
+        degrees -- number of degrees to swing the image. 0 to 90 degrees
+        width -- width of the original- and resulting image
+        height -- height of the original- and resulting image
+        """
+        
         self.new_height = math.floor(self.orig_height * math.cos(math.radians(degrees)))
         self.new_width = math.floor(self.orig_width * math.cos(math.radians(degrees)))
         # Corners, clockwise from top left
@@ -73,9 +74,9 @@ class ImageOperations:
 
     def blobdetect_HSV(self):
         """
-    Find blobs (weed) in the altered image (i.e. the foreshortness corrected
-    image). Return a cv2 Keypoints list.
-    """
+        Find blobs (weed) in the altered image (i.e. the foreshortness corrected
+        image). Return a cv2 Keypoints list.
+        """
         # Convert BGR to HSV
         hsv = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
 
@@ -201,6 +202,10 @@ class ImageOperations:
         
 
     def archive_image(self, img):
+        """ Save image to disk using the directory specified in the
+            properties and a time to generate unique image names
+        """
+        
         try:
             imgname = "roboimg" + str(int(time.time())) + ".png"
             imgpath = os.path.join(self.imgdir, imgname)
@@ -211,9 +216,17 @@ class ImageOperations:
             self.logger.error("archive_image failed %s" % (imgpath))
 
     def nothing(self, x):
+        """ Callback function for the trackbars used by the
+            gui_choose_hsv() function.
+        """
+        
         pass
 
     def gui_choose_hsv(self, img):
+        """ Test function for playing with image parameters
+            using GUI
+        """
+        
         cv2.namedWindow('result')
 
         # Starting with 100's to prevent error while masking
