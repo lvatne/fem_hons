@@ -22,13 +22,15 @@ try:
     
     cam.take_picture()
     cam.take_nav_picture()
-    print("Heading %f" % (c.heading()))
+    # print("Heading %f" % (c.heading()))
+    c.test_read()
 
     t.move_dist(0.5)
     time.sleep(1)
     t.turn_relative(90)
     time.sleep(0.5)
-    print("Heading %f" % (c.heading()))
+    # print("Heading %f" % (c.heading()))
+    c.test_read()
     
     cam.take_picture()
     cam.take_nav_picture()
@@ -36,7 +38,8 @@ try:
     time.sleep(1)
     t.turn_relative(90)
     time.sleep(0.5)
-    print("Heading %f" % (c.heading()))
+    # print("Heading %f" % (c.heading()))
+    c.test_read()
     
     cam.take_picture()
     cam.take_nav_picture()
@@ -44,7 +47,8 @@ try:
     time.sleep(1)
     t.turn_relative(90)
     time.sleep(0.5)
-    print("Heading %f" % (c.heading()))
+    # print("Heading %f" % (c.heading()))
+    c.test_read()
     
     cam.take_picture()
     cam.take_nav_picture()
@@ -52,7 +56,8 @@ try:
     time.sleep(1)
     t.turn_relative(90)
     time.sleep(0.5)
-    print("Heading %f" % (c.heading()))
+    # print("Heading %f" % (c.heading()))
+    c.test_read()
     
     l.headlights(False)
     exit()

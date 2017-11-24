@@ -807,8 +807,9 @@ class Compass:
         self.__declination = (degrees + minutes / 60) * math.pi / 180
 
         (reg, self.__scale) = self.__scales[gauss]
-        self.bus.write_byte_data(self.address, 0x00, 0x70) # 8 Average, 15 Hz, normal measurement
-        self.bus.write_byte_data(self.address, 0x01, reg << 5) # Scale
+        self.bus.write_byte_data(self.address, 0x00, 0x10) # 1 Average, 15 Hz, normal measurement
+        # self.bus.write_byte_data(self.address, 0x01, reg << 5) # Scale
+        self.bus.write_byte_data(self.address, 0x01, 0x20) # Scale
         self.bus.write_byte_data(self.address, 0x02, 0x00) # Continuous measurement
         s = sysprops.SysProps()
         self.x_offset = s.x_offset
@@ -879,9 +880,9 @@ class Compass:
 
         status = self.bus.read_byte_data(self.address, 0x09)
 
-        # x_axis = np.int32((x_axis_msb * 256) + x_axis_lsb)
-        # y_axis = np.int32((y_axis_msb * 256) + y_axis_lsb)
-        # z_axis = np.int32((z_axis_msb * 256) + z_axis_lsb)
+        alt_x_axis = np.int32((x_axis_msb * 256) + x_axis_lsb)
+        alt_y_axis = np.int32((y_axis_msb * 256) + y_axis_lsb)
+        alt_z_axis = np.int32((z_axis_msb * 256) + z_axis_lsb)
 
         x_axis = self.twos_complement(x_axis_msb << 8 | x_axis_lsb, 16)
         y_axis = self.twos_complement(y_axis_msb << 8 | y_axis_lsb, 16)
@@ -893,6 +894,7 @@ class Compass:
         print("Y MSB %4X Y LSB %4X" % (y_axis_msb, y_axis_lsb))
         print("Z MSB %4X Z LSB %4X" % (z_axis_msb, z_axis_lsb))
         print("X %4d Y %4d Z %4d" % (x_axis, y_axis, z_axis))
+        print("Alt X %4d Y %4d Z %4d" % (alt_x_axis, alt_y_axis, alt_z_axis))
         print("Raw heading %2.4f rad %3.2d deg" % (raw_heading, raw_heading * (180.0 / math.pi)))
 
         print("Status %4X" % (status))
