@@ -88,9 +88,19 @@ class Tracker:
 
         self.cur_speed = 3.0
         self.cur_hdg = 0
-        self.c = Compass()
-        self.a = Accelerometer()
-        self.g = Gyro()
+        self.c = None  # Compass
+        self.a = None  # Accelerator
+        self.g = None  # Gyro
+        self.p = None  # Pressure sensor
+        if self.s.inertial_navigation == 'GY85':
+            self.c = Compass()
+            self.a = Accelerometer()
+            self.g = Gyro()
+        if self.s.inertial_navigation == 'ICM20948':
+            self.c = None
+            self.a = None
+            self.g = None
+            self.p = None
         self.m = motor_sw.Motor_sw()
         self.calibrate_accelerometer_offset()
         
@@ -776,7 +786,7 @@ class Accelerometer:
 class Compass:
 
     """ HMC5888L Magnetometer (Digital Compass) wrapper class.
-        The chip is located on the GY-85 subassembly and is accessed using S2C 
+        The chip is located on the GY-85 subassembly and is accessed using I2C 
         Based on https://bitbucket.org/thinkbowl/i2clibraries/src/14683feb0f96,
         but uses smbus rather than quick2wire and sets some different init
         params.

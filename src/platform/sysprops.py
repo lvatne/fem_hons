@@ -63,6 +63,7 @@ class SysProps:
         else:
             self.collect_PID_data = True
         self.light_wakeup_t=float(self.props['light_wakeup_t'])
+        self.inertial_navigation=self.props['inertial_navigation']
         
 
     def set(self, key, value):
