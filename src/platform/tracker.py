@@ -12,6 +12,7 @@ import logging
 import motor_sw
 import geofence
 import sysprops
+import ICM20948
 
 class Tracker:
     """ Tracker class: Handles communication with on-board inertial
@@ -97,10 +98,10 @@ class Tracker:
             self.a = Accelerometer()
             self.g = Gyro()
         if self.s.inertial_navigation == 'ICM20948':
-            self.c = None
-            self.a = None
-            self.g = None
-            self.p = None
+            self.c = ICM20948.Compass_ICM20948()
+            self.a = ICM20948.Accelerometer_ICM20948()
+            self.g = ICM20948.Gyro_ICM20948()
+            self.p = ICM20948.Pressure_ICM20948()
         self.m = motor_sw.Motor_sw()
         self.calibrate_accelerometer_offset()
         
