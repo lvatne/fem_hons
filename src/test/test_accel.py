@@ -4,16 +4,42 @@ import numpy as np
 import geofence
 import tracker
 import motor_sw
+from datetime import datetime
 import time
+import GY85
 
-g = geofence.Geofence()
+
+# g = geofence.Geofence()
 
 m = motor_sw.Motor_sw()
-c = tracker.Compass(gauss = 0.88, declination = (0, 52))
-c.self_test()
+# c = tracker.Compass(gauss = 0.88, declination = (0, 52))
+# c.self_test()
 
-a = tracker.Accelerometer()
+a = GY85.Accelerometer_GY85()
 time.sleep(3) # Give it some time to stabilize....
+values = []
+tstart = time.time()
+
+for i in range(0,10):
+    values.append(a.getAxes())
+    time.sleep(0.005)
+m.signal(m.RUN_FWD, 100)
+for i in range(0,100):
+    values.append(a.getAxes())
+    time.sleep(0.005)
+m.signal(m.STOP, 0)
+for i in range(0,30):
+    values.append(a.getAxes())
+    time.sleep(0.005)
+tstop = time.time()
+print(tstart)
+print(tstop)
+for a in values:
+    print(a[0], ' ', a[1], ' ', a[2])
+
+
+
+"""
 
 #for i in range(100):
 #    a.read_raw()
@@ -108,3 +134,4 @@ try:
 except:
     m.stop()
     raise
+"""

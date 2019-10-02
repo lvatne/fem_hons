@@ -13,6 +13,7 @@ import motor_sw
 import geofence
 import sysprops
 import ICM20948
+import GY85
 
 class Tracker:
     """ Tracker class: Handles communication with on-board inertial
@@ -78,7 +79,7 @@ class Tracker:
         self.s = sysprops.SysProps()
         self.collect_PID_data = self.s.collect_PID_data
         if self.collect_PID_data:
-            self.PID_store = np.empty((500, self.endmarker), dtype=float)
+            self.PID_store = np.empty((2000, self.endmarker), dtype=float)
         
         self.dbg_cnt = 0
         self.alpha = 0.05  # Damping factor for the accelerometer low-pass filter
@@ -94,14 +95,19 @@ class Tracker:
         self.g = None  # Gyro
         self.p = None  # Pressure sensor
         if self.s.inertial_navigation == 'GY85':
-            self.c = Compass()
-            self.a = Accelerometer()
-            self.g = Gyro()
-        if self.s.inertial_navigation == 'ICM20948':
+            self.c = GY85.Compass_GY85()
+            self.a = GY85.Accelerometer_GY85()
+            self.g = GY85.Gyro_GY85()
+        elif self.s.inertial_navigation == 'ICM20948':
             self.c = ICM20948.Compass_ICM20948()
             self.a = ICM20948.Accelerometer_ICM20948()
             self.g = ICM20948.Gyro_ICM20948()
             self.p = ICM20948.Pressure_ICM20948()
+        else:
+            self.c = Compass()
+            self.a = Accelerometer()
+            self.g = Gyro()
+            
         self.m = motor_sw.Motor_sw()
         self.calibrate_accelerometer_offset()
         
@@ -209,6 +215,8 @@ class Tracker:
                     power = 100
                 if power < -100:
                     power = -100
+                self.get_inertial_measurements(self.m) # Initialise inertial_buffer and 
+                self.get_inertial_measurements(self.m) # get the sampling started
                 if math.floor(power) != math.floor(self.prev_power): # Don't change the power setting unneccessarily
                     if power > 0:
                         self.m.signal(self.m.RUN_FWD, power)
@@ -216,7 +224,7 @@ class Tracker:
                         self.m.signal(self.m.RUN_REV, 0.0 - power)
                 self.prev_power = power
                 
-                self.get_inertial_measurements()
+                self.get_inertial_measurements(self.m)
                 
                 r_dist = meter - self.inertial_data[0, self.dist_x]
                 
@@ -235,13 +243,14 @@ class Tracker:
                     
 
                 num_iter = num_iter - 1
-                if meter < 0.0 and r_dist > -0.01:
+                if meter < 0.0 and r_dist > -0.1:
                     arrived = True
-                    print("Arrived going backwards")
-                if meter >= 0.0 and r_dist < 0.01:
+                    self.logger.info("Arrived going backwards")
+                if meter >= 0.0 and r_dist < 0.1:
                     arrived = True
-                    print("Arrived going forwards")
+                    self.logger.info("Arrived going forwards")
                 if num_iter <= 0:
+                    self.logger.info("Arrived after bailout")
                     arrived = True
                     failure = True
             self.m.signal(self.m.STOP, 0)
@@ -249,7 +258,7 @@ class Tracker:
             # Allow .2 sec to coast to a halt
             num_extra = int(self.Fs / 5)
             for i in range(num_extra):
-                self.get_inertial_measurements()                
+                self.get_inertial_measurements(self.m)                
                 r_dist = meter - self.inertial_data[0, self.dist_x]
                 
             if self.collect_PID_data:
@@ -324,7 +333,7 @@ class Tracker:
             
         return power
             
-    def get_inertial_measurements(self):
+    def get_inertial_measurements(self, motor):
         """ Sample data from the inertial navigation sensors and prepare the values for the PID regulators.
             Acceleration data and gyro data is sampled at Fs
             Operates directly on the class buffer inertial_data
@@ -335,7 +344,7 @@ class Tracker:
             if self.collect_PID_data:
                 self.PID_store[self.dbg_cnt] = np.copy(self.inertial_data[0])
                 self.dbg_cnt = self.dbg_cnt + 1
-                if self.dbg_cnt >= 499:
+                if self.dbg_cnt >= 1999:
                     self.dump_PID_store(self.PID_store)
 
             # Rotate the inertial_data array so that index 0 is ready to accept new values
@@ -389,14 +398,14 @@ class Tracker:
         self.inertial_data[0, self.angle_z] = self.inertial_data[1, self.angle_z] + (self.inertial_data[0, self.gyr_z] * self.Ta)
 
         # Use unfiltered acceleration values
-        # self.inertial_data[0, self.vel_x] = self.inertial_data[1, self.vel_x] + (self.inertial_data[0, self.acc_x] * self.Ta)
-        # self.inertial_data[0, self.vel_y] = self.inertial_data[1, self.vel_y] + (self.inertial_data[0, self.acc_y] * self.Ta)
-        # self.inertial_data[0, self.vel_z] = self.inertial_data[1, self.vel_z] + (self.inertial_data[0, self.acc_z] * self.Ta)
+        self.inertial_data[0, self.vel_x] = self.inertial_data[1, self.vel_x] + (self.inertial_data[0, self.acc_x] * self.Ta)
+        self.inertial_data[0, self.vel_y] = self.inertial_data[1, self.vel_y] + (self.inertial_data[0, self.acc_y] * self.Ta)
+        self.inertial_data[0, self.vel_z] = self.inertial_data[1, self.vel_z] + (self.inertial_data[0, self.acc_z] * self.Ta)
 
         # Use filtered acceleration values
-        self.inertial_data[0, self.vel_x] = self.inertial_data[1, self.vel_x] + (self.inertial_data[0, self.flt_acc_x] * self.Ta)
-        self.inertial_data[0, self.vel_y] = self.inertial_data[1, self.vel_y] + (self.inertial_data[0, self.flt_acc_y] * self.Ta)
-        self.inertial_data[0, self.vel_z] = self.inertial_data[1, self.vel_z] + (self.inertial_data[0, self.flt_acc_z] * self.Ta)
+        # self.inertial_data[0, self.vel_x] = self.inertial_data[1, self.vel_x] + (self.inertial_data[0, self.flt_acc_x] * self.Ta)
+        # self.inertial_data[0, self.vel_y] = self.inertial_data[1, self.vel_y] + (self.inertial_data[0, self.flt_acc_y] * self.Ta)
+        # self.inertial_data[0, self.vel_z] = self.inertial_data[1, self.vel_z] + (self.inertial_data[0, self.flt_acc_z] * self.Ta)
 
         self.inertial_data[0, self.dist_x] = self.inertial_data[1, self.dist_x] + (self.inertial_data[0, self.vel_x] * self.Ta)
         self.inertial_data[0, self.dist_y] = self.inertial_data[1, self.dist_y] + (self.inertial_data[0, self.vel_y] * self.Ta)
@@ -529,7 +538,7 @@ class Tracker:
         turn_angle = rel_angle
         self.t_now = time.time()
         while (turn_angle > 1.0 or turn_angle < -1.0) and giveup > 0:
-            self.get_inertial_measurements()
+            self.get_inertial_measurements(self.m)
             PID = self.PIDturn(turn_angle)
             if PID >= 0.0:
                 self.m.signal(self.m.TURN_RIGHT, PID)
@@ -544,7 +553,7 @@ class Tracker:
         # Allow .2 sec to coast to a halt
         num_extra = int(self.Fs / 5)
         for i in range(num_extra):
-            self.get_inertial_measurements()                
+            self.get_inertial_measurements(self.m)                
             completed_angle = self.inertial_data[0, self.angle_z]
             turn_angle = rel_angle - completed_angle
         
@@ -585,14 +594,14 @@ class Tracker:
             meters = 0.0 - meters
         num_sec = meters / avg_speed
         iterations = self.Fs * num_sec
-        iterations = iterations * 1.25 # Add 25%...
+        iterations = iterations * 2 # Add 100%...
         return int(iterations)
         
     def turn(self, angle, hdg):
         """ Adjust the relative power of the motors while running forward
         """
         for i in range(20):
-            adj_accel_data, adj_gyro_data = self.get_inertial_measurements(0, angle)
+            adj_accel_data, adj_gyro_data = self.get_inertial_measurements(self.m)
             self.m.steer(self.PIDsteer(angle))
 
     def buf_reset(self):
@@ -966,3 +975,5 @@ class Compass:
                "Axis Z: " + str(z) + "\n" \
                "Declination: " + self.degrees(self.declination()) + "\n" \
                "Heading: " + self.degrees(self.heading()) + "\n"
+
+

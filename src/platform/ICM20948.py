@@ -12,25 +12,55 @@ import sysprops
 
 
 class Gyro_ICM20948:
-    """ Interface to the ITG3205 gyro chip on the 9-degrees of freedom
-    Subassembly (GY-85).
+    """ Interface to the ICM-20948 gyro chip on the 10-degrees of freedom
+    Subassembly (10-DOF).
 
     
-    Positive Z values: Counter-clockwise rotation
-    Negative Z values: clockwise rotation
     """
+    # user bank 2 register
+    REG_ADD_GYRO_SMPLRT_DIV = 0x00
+    REG_ADD_GYRO_CONFIG_1 = 0x01
+    REG_VAL_BIT_GYRO_DLPCFG_2 = 0x10
+    REG_VAL_BIT_GYRO_DLPCFG_4 = 0x20 
+    REG_VAL_BIT_GYRO_DLPCFG_6 = 0x30
+    REG_VAL_BIT_GYRO_FS_250DPS = 0x00 
+    REG_VAL_BIT_GYRO_FS_500DPS = 0x02 
+    REG_VAL_BIT_GYRO_FS_1000DPS = 0x04 
+    REG_VAL_BIT_GYRO_FS_2000DPS = 0x06  
+    REG_VAL_BIT_GYRO_DLPF  =     0x01 
     
     def __init__(self, address = 0x68):
         self.bus = smbus.SMBus(1)
         self.address = address
+        self.bus.write_byte_data(self.address, 0x7F, 0x00) # select register bank 0
+        pwr_mgmt = 0x80
+        self.bus.write_byte_data(self.address, 0x06, pwr_mgmt)
+        time.sleep(0.01)
+        pwr_mgmt2 = 0x01
+        self.bus.write_byte_data(self.address, 0x07, pwr_mgmt2)
+        time.sleep(0.01)
+        self.bus.write_byte_data(self.address, 0x7F, 0x20) # select register bank 2
+        time.sleep(0.01)
+        self.bus.write_byte_data(self.address, 0x00, 0x07) # Sample rate divisor
+        time.sleep(0.01)
+        self.bus.write_byte_data(self.address, 0x01, 0x35) # Gyro config 1
+        time.sleep(0.01)
+        #  self.bus.write_byte_data(self.address, 0x11, 0x07) # 
+        # time.sleep(0.01)
+        # self.bus.write_byte_data(self.address, 0x14, 0x31)
+        # time.sleep(0.01)
+        
+         
         #self.scalar = 14.375
         self.scalar = 12.12  # Determined empirically
         # Select Power management register 0x3E(62)
         #		0x01(01)	Power up, PLL with X-Gyro reference
-        self.bus.write_byte_data(self.address, 0x3E, 0x01)
+        # self.bus.write_byte_data(self.address, 0x3E, 0x01)
         # Select DLPF register, 0x16(22)
         #		0x18(24)	Gyro FSR of +/- 2000 dps
-        self.bus.write_byte_data(self.address, 0x16, 0x18)
+        # self.bus.write_byte_data(self.address, 0x16, 0x18)
+        self.bus.write_byte_data(self.address, 0x7F, 0x00) # select register bank 0
+        
 
     def self_test(self):
         """ Check return value from the specified address to veify that it is actually
@@ -38,7 +68,18 @@ class Gyro_ICM20948:
         """
         value = self.bus.read_byte_data(self.address, 0)
         print("Gyro self test %4X" % (value))
-        if value == 0x68:
+        self.bus.write_byte_data(self.address, 0x7F, 0x10) # select register bank 1
+        time.sleep(0.01)
+        x_gyro = self.bus.read_byte_data(self.address, 0x02)
+        y_gyro = self.bus.read_byte_data(self.address, 0x03)
+        z_gyro = self.bus.read_byte_data(self.address, 0x04)
+
+        print('X: %x Y; %x Z: %x' % (x_gyro, y_gyro, z_gyro))
+        print('Check vs X: b8  Y: c2  Z: d0')
+
+        self.bus.write_byte_data(self.address, 0x7F, 0x00) # select register bank 0
+
+        if value == 0xEA:
             return True
         return False
 
@@ -48,21 +89,26 @@ class Gyro_ICM20948:
             Returns instantaneous rotation around the X, Y and Z axis in degrees per second.
             """
         
-        data = self.bus.read_i2c_block_data(self.address, 0x1D, 6)
-
+        # data = self.bus.read_i2c_block_data(self.address, 0x33, 6)
+        data = np.zeros(13)
+        register = 0x33
+        for i in range(0,6):
+            register = register + i
+            data[i] = self.bus.read_byte_data(self.address, register)
+        print(data)
         # Convert the data
         xGyro = data[0] * 256 + data[1]
         if xGyro > 32767 :
             xGyro -= 65536
-        xGyro = xGyro / self.scalar # To get degrees per second
+        # xGyro = xGyro / self.scalar # To get degrees per second
         yGyro = data[2] * 256 + data[3]
         if yGyro > 32767 :
             yGyro -= 65536
-        yGyro = yGyro / self.scalar
+        # yGyro = yGyro / self.scalar
         zGyro = data[4] * 256 + data[5]
         if zGyro > 32767 :
             zGyro -= 65536
-        zGyro = zGyro / self.scalar
+        # zGyro = zGyro / self.scalar
         #return (xGyro, yGyro, zGyro)
         return np.array([xGyro, yGyro, zGyro])
 
@@ -375,8 +421,15 @@ class Pressure_ICM20948:
 
 if __name__ == "__main__":
     gyro = Gyro_ICM20948()
-    accel = Accelerometer_ICM20948()
-    comp = Compass_ICM20948()
-    press = Pressure_ICM20948()
+    ret = gyro.self_test()
+    print('Gyro: %x' % ret)
+
+    for i in range(0, 100):
+        data = gyro.read()
+        print(data)
+        time.sleep(0.5)
+    # accel = Accelerometer_ICM20948()
+    # comp = Compass_ICM20948()
+    # press = Pressure_ICM20948()
     
     

@@ -510,4 +510,37 @@ class Motor_sw:
         self.logger.info('..ran_rev')
 
 
+if __name__ == "__main__":
+    m = Motor_sw()
+    m.force_stop()
+
+    m.signal(m.RUN_FWD, 30)
+    time.sleep(1)
+    m.signal(m.RUN_FWD, 70)
+    time.sleep(1)
+    m.signal(m.STEER_LEFT,20)
+    time.sleep(1)
+    m.signal(m.STEER_RIGHT, 20)
+    time.sleep(1)
+
+    m.signal(m.RUN_REV, 90)
+    time.sleep(1)
+    m.signal(m.RUN_REV, 70)
+    time.sleep(0.5)
+    m.signal(m.STEER_RIGHT, 20)
+    time.sleep(1)
+    m.signal(m.STEER_LEFT,20)
+    time.sleep(1)
+             
+
+    m.signal(m.TURN_RIGHT, 80)
+    time.sleep(2)
+    m.signal(m.TURN_LEFT, 80)
+    time.sleep(2)
+
+    # m.signal(m.STEER_LEFT,20)
+    # time.sleep(1)
+    # m.signal(m.STEER_RIGHT, 20)
+    # time.sleep(1)
+    m.signal(m.STOP, 0)
 

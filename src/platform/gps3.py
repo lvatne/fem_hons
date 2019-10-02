@@ -196,8 +196,10 @@ if __name__ == '__main__':
     for new_data in gpsd_socket:
         if new_data:
             data_stream.unpack(new_data)
+            print(data_stream.TPV)
             print('Altitude = ',data_stream.TPV['alt'])
             print('Latitude = ',data_stream.TPV['lat'])
+            print('Longitude = ', data_stream.TPV['lon'])
             i = i + 1
             if i >= 10:
                 break
